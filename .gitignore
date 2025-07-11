@@ -1,0 +1,29 @@
+# 虚拟环境
+.venv
+
+# 系统文件
+.DS_Store
+
+# 文档目录
+docs/
+
+# 环境变量
+.env
+
+# 测试覆盖率文件
+.coverage
+.coverage.*
+htmlcov/
+.pytest_cache/
+
+# 日志文件
+logs/
+*.log
+
+# 数据库文件
+*.db
+*.sqlite
+instance/
+
+# 上传文件
+uploads/
