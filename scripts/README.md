@@ -40,6 +40,20 @@ python scripts/run_tests.py models
 python scripts/run_tests.py coverage
 ```
 
+### `worker.py` - RQ异步任务Worker
+启动RQ任务队列的worker进程，用于处理异步AI分析任务。
+
+```bash
+# 启动Worker进程
+python scripts/worker.py
+
+# 监控任务队列状态
+rq info
+
+# 清空失败任务
+rq empty failed
+```
+
 ## 使用方式
 
 ### 方式1：使用Flask CLI命令（推荐）
@@ -73,8 +87,11 @@ python scripts/init_db.py
 
 2. **日常开发**
    ```bash
-   # 直接启动（会自动检查数据库状态）
+   # 启动Flask应用
    python run.py
+
+   # 启动异步任务Worker（新终端）
+   python scripts/worker.py
    ```
 
 3. **重置环境**

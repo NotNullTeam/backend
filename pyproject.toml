@@ -53,6 +53,9 @@ markers = [
     "auth: 认证相关测试",
     "models: 模型测试",
     "api: API测试",
+    "cases: 案例管理相关测试",
+    "interactions: 多轮交互相关测试",
+    "feedback: 反馈相关测试",
     "slow: 运行较慢的测试"
 ]
 

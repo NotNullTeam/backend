@@ -1,7 +1,7 @@
 """
-IP智慧解答专家系统 - 配置和错误处理测试
+IP智慧解答专家系统 - 配置单元测试
 
-本模块测试配置管理、错误处理器和应用工厂函数。
+本模块测试配置管理和应用工厂函数的单元测试。
 """
 
 import pytest
@@ -9,7 +9,7 @@ import os
 import tempfile
 from unittest.mock import patch
 from app import create_app, db
-from config import Config, DevelopmentConfig, TestingConfig, ProductionConfig
+from config.settings import Config, DevelopmentConfig, TestingConfig, ProductionConfig
 
 
 @pytest.mark.unit
@@ -125,153 +125,6 @@ class TestAppFactory:
         error_codes = [400, 401, 403, 404, 409, 422, 429, 500, 503]
         for code in error_codes:
             assert code in app.error_handler_spec[None]
-
-
-@pytest.mark.integration
-class TestErrorHandlers:
-    """测试错误处理器"""
-
-    def test_400_bad_request_handler(self, client):
-        """测试400错误处理器"""
-        # 发送无效JSON请求
-        response = client.post('/api/v1/auth/login',
-                             data='invalid json',
-                             content_type='application/json')
-
-        assert response.status_code == 400
-        data = response.get_json()
-
-        assert data['code'] == 400
-        assert data['status'] == 'error'
-        assert data['error']['type'] == 'INVALID_REQUEST'
-        assert '请求参数格式错误' in data['error']['message']
-
-    def test_401_unauthorized_handler(self, client):
-        """测试401错误处理器"""
-        # 访问需要认证的端点但不提供令牌
-        response = client.get('/api/v1/auth/me')
-
-        assert response.status_code == 401
-        # JWT扩展可能返回不同的错误格式
-        # 只验证状态码即可
-
-    def test_404_not_found_handler(self, client):
-        """测试404错误处理器"""
-        # 访问不存在的端点
-        response = client.get('/api/v1/nonexistent')
-
-        assert response.status_code == 404
-        data = response.get_json()
-
-        assert data['code'] == 404
-        assert data['status'] == 'error'
-        assert data['error']['type'] == 'NOT_FOUND'
-        assert '请求的资源不存在' in data['error']['message']
-
-    def test_422_unprocessable_entity_handler(self, client):
-        """测试422错误处理器"""
-        # 使用无效的JWT令牌
-        headers = {'Authorization': 'Bearer invalid_token'}
-        response = client.get('/api/v1/auth/me', headers=headers)
-
-        assert response.status_code == 422
-        # JWT错误通常返回422
-
-    def test_500_internal_error_handler(self, client, database, monkeypatch):
-        """测试500错误处理器"""
-        # 模拟数据库错误
-        def mock_commit():
-            raise Exception("Database error")
-
-        # 先正常登录获取令牌
-        user_data = {
-            'username': 'testuser',
-            'email': 'test@example.com',
-            'roles': 'user'
-        }
-        from app.models.user import User
-        user = User(**user_data)
-        user.set_password('testpass123')
-        database.session.add(user)
-        database.session.commit()
-
-        login_response = client.post('/api/v1/auth/login', json={
-            'username': 'testuser',
-            'password': 'testpass123'
-        })
-
-        token = login_response.get_json()['data']['access_token']
-
-        # 模拟数据库提交错误
-        monkeypatch.setattr(database.session, 'commit', mock_commit)
-
-        # 尝试登录（会触发commit）
-        response = client.post('/api/v1/auth/login', json={
-            'username': 'testuser',
-            'password': 'testpass123'
-        })
-
-        assert response.status_code == 500
-        data = response.get_json()
-
-        assert data['code'] == 500
-        assert data['status'] == 'error'
-        assert data['error']['type'] == 'INTERNAL_ERROR'
-
-
-@pytest.mark.integration
-class TestConfigIntegration:
-    """测试配置集成"""
-
-    def test_database_configuration(self, app):
-        """测试数据库配置"""
-        with app.app_context():
-            # 测试数据库连接配置
-            assert db.engine is not None
-
-            # 测试数据库URI配置
-            db_uri = app.config['SQLALCHEMY_DATABASE_URI']
-            assert db_uri is not None
-            assert 'sqlite' in db_uri.lower()  # 测试环境使用SQLite
-
-    def test_jwt_configuration(self, app):
-        """测试JWT配置"""
-        assert app.config['JWT_SECRET_KEY'] is not None
-        assert isinstance(app.config['JWT_ACCESS_TOKEN_EXPIRES'], (int, bool))
-        assert isinstance(app.config['JWT_REFRESH_TOKEN_EXPIRES'], (int, bool))
-
-    def test_cors_configuration(self, client):
-        """测试CORS配置"""
-        response = client.options('/api/v1/auth/login')
-
-        # CORS应该允许OPTIONS请求
-        assert response.status_code in [200, 204]
-
-    def test_file_upload_configuration(self, app):
-        """测试文件上传配置"""
-        assert app.config['MAX_CONTENT_LENGTH'] is not None
-        assert app.config['MAX_CONTENT_LENGTH'] > 0
-
-        upload_folder = app.config.get('UPLOAD_FOLDER')
-        if upload_folder:
-            assert isinstance(upload_folder, str)
-
-    def test_production_config_security(self):
-        """测试生产环境安全配置"""
-        app = create_app(ProductionConfig)
-
-        assert app.config['DEBUG'] is False
-        assert app.config['SECRET_KEY'] is not None
-        assert app.config['JWT_SECRET_KEY'] is not None
-
-    def test_logging_configuration(self, app):
-        """测试日志配置"""
-        # 测试日志记录器是否配置
-        assert app.logger is not None
-
-        # 在测试环境中，应该有控制台处理器
-        if app.config['TESTING']:
-            assert len(app.logger.handlers) >= 0
 
 
 @pytest.mark.unit

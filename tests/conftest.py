@@ -12,7 +12,7 @@ from app.models.user import User
 from app.models.case import Case, Node, Edge
 from app.models.knowledge import KnowledgeDocument, ParsingJob
 from app.models.feedback import Feedback
-from config import TestingConfig
+from config.settings import TestingConfig
 
 
 class TestConfig(TestingConfig):
@@ -30,7 +30,7 @@ class TestConfig(TestingConfig):
 def app():
     """创建测试应用实例"""
     app = create_app(TestConfig)
-    
+
     # 建立应用上下文
     with app.app_context():
         yield app
@@ -54,9 +54,9 @@ def database(app):
     with app.app_context():
         # 创建所有表
         db.create_all()
-        
+
         yield db
-        
+
         # 清理数据库
         db.session.remove()
         db.drop_all()
@@ -71,10 +71,10 @@ def sample_user(database):
         roles='user'
     )
     user.set_password('testpass123')
-    
+
     database.session.add(user)
     database.session.commit()
-    
+
     return user
 
 
@@ -87,10 +87,10 @@ def admin_user(database):
         roles='admin,user'
     )
     admin.set_password('admin123')
-    
+
     database.session.add(admin)
     database.session.commit()
-    
+
     return admin
 
 
@@ -104,10 +104,10 @@ def inactive_user(database):
         is_active=False
     )
     user.set_password('inactive123')
-    
+
     database.session.add(user)
     database.session.commit()
-    
+
     return user
 
 
@@ -118,10 +118,10 @@ def auth_headers(client, sample_user):
         'username': sample_user.username,
         'password': 'testpass123'
     })
-    
+
     data = response.get_json()
     token = data['data']['access_token']
-    
+
     return {'Authorization': f'Bearer {token}'}
 
 
@@ -132,10 +132,10 @@ def admin_auth_headers(client, admin_user):
         'username': admin_user.username,
         'password': 'admin123'
     })
-    
+
     data = response.get_json()
     token = data['data']['access_token']
-    
+
     return {'Authorization': f'Bearer {token}'}
 
 
@@ -147,11 +147,51 @@ def sample_case(database, sample_user):
         status='open',
         user_id=sample_user.id
     )
-    
+
     database.session.add(case)
     database.session.commit()
-    
+
     return case
+
+
+@pytest.fixture(scope='function')
+def sample_node(database, sample_case):
+    """创建示例节点"""
+    node = Node(
+        case_id=sample_case.id,
+        type='USER_QUERY',
+        title='用户问题',
+        status='COMPLETED',
+        content={
+            'text': '网络连接问题',
+            'attachments': []
+        },
+        node_metadata={
+            'timestamp': '2024-01-01T00:00:00'
+        }
+    )
+
+    database.session.add(node)
+    database.session.commit()
+
+    return node
+
+
+@pytest.fixture(scope='function')
+def sample_feedback(database, sample_case, sample_user):
+    """创建示例反馈"""
+    feedback = Feedback(
+        case_id=sample_case.id,
+        user_id=sample_user.id,
+        outcome='solved',
+        rating=4,
+        comment='问题已解决'
+    )
+
+    database.session.add(feedback)
+    database.session.commit()
+
+    return feedback
 
 
 @pytest.fixture(scope='function')
@@ -167,10 +207,10 @@ def sample_knowledge_document(database, sample_user):
         tags=['OSPF', '路由'],
         user_id=sample_user.id
     )
-    
+
     database.session.add(doc)
     database.session.commit()
-    
+
     return doc
 
 

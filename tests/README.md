@@ -7,21 +7,38 @@
 ### 测试结构
 ```
 tests/
-├── __init__.py              # 测试包初始化
+├── unit/                    # 单元测试
+│   ├── __init__.py         # 单元测试包初始化
+│   ├── test_models.py      # 数据模型单元测试
+│   └── test_config.py      # 配置类单元测试
+├── integration/             # 集成测试
+│   ├── __init__.py         # 集成测试包初始化
+│   ├── test_database.py    # 数据库集成测试
+│   └── test_config.py      # 配置集成测试
+├── api/                     # API测试
+│   ├── __init__.py         # API测试包初始化
+│   ├── test_auth_api.py    # 认证API测试
+│   ├── test_cases_api.py   # 案例管理API测试
+│   ├── test_interactions_api.py # 多轮交互API测试
+│   └── test_feedback_api.py # 反馈API测试
 ├── conftest.py             # pytest配置和fixture
-├── test_auth_api.py        # 认证API测试
-├── test_models.py          # 数据模型测试
-├── test_database.py        # 数据库操作测试
-├── test_config.py          # 配置和错误处理测试
 └── README.md              # 本文档
 ```
 
 ### 测试类型
 - **单元测试** (`@pytest.mark.unit`): 测试独立的函数和方法
+  - 配置类测试
+  - 数据模型测试
+  - 工具函数测试
 - **集成测试** (`@pytest.mark.integration`): 测试组件间的交互
+  - 数据库操作测试
+  - 错误处理器测试
+  - 配置集成测试
 - **API测试** (`@pytest.mark.api`): 测试HTTP API接口
-- **模型测试** (`@pytest.mark.models`): 测试数据库模型
-- **认证测试** (`@pytest.mark.auth`): 测试认证相关功能
+  - 认证API测试 (`@pytest.mark.auth`)
+  - 案例管理API测试 (`@pytest.mark.cases`)
+  - 多轮交互API测试 (`@pytest.mark.interactions`)
+  - 反馈API测试 (`@pytest.mark.feedback`)
 
 ## 🚀 快速开始
 
@@ -45,23 +62,30 @@ pytest --cov=app --cov-report=term-missing
 
 ### 3. 运行特定测试
 ```bash
-# 运行认证相关测试
-pytest -m auth
+# 按测试类型运行
+pytest -m unit                    # 运行单元测试
+pytest -m integration             # 运行集成测试
+pytest -m api                     # 运行API测试
 
-# 运行单元测试
-pytest -m unit
+# 按功能模块运行
+pytest -m auth                    # 运行认证相关测试
+pytest -m cases                   # 运行案例管理测试
+pytest -m interactions            # 运行多轮交互测试
+pytest -m feedback                # 运行反馈测试
 
-# 运行集成测试
-pytest -m integration
+# 按目录运行
+pytest tests/unit/                # 运行所有单元测试
+pytest tests/integration/         # 运行所有集成测试
+pytest tests/api/                 # 运行所有API测试
 
 # 运行特定测试文件
-pytest tests/test_auth_api.py
+pytest tests/api/test_cases_api.py
 
 # 运行特定测试类
-pytest tests/test_auth_api.py::TestAuthLogin
+pytest tests/api/test_cases_api.py::TestCasesListAPI
 
 # 运行特定测试方法
-pytest tests/test_auth_api.py::TestAuthLogin::test_login_success
+pytest tests/api/test_cases_api.py::TestCasesListAPI::test_get_cases_success
 ```
 
 ## 📊 测试覆盖率
