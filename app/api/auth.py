@@ -90,7 +90,7 @@ def login():
                 'access_token': access_token,
                 'refresh_token': refresh_token,
                 'token_type': 'Bearer',
-                'expires_in': current_app.config['JWT_ACCESS_TOKEN_EXPIRES'],
+                'expires_in': int(current_app.config['JWT_ACCESS_TOKEN_EXPIRES'].total_seconds()) if hasattr(current_app.config['JWT_ACCESS_TOKEN_EXPIRES'], 'total_seconds') else current_app.config['JWT_ACCESS_TOKEN_EXPIRES'],
                 'user_info': user.to_dict()
             }
         })

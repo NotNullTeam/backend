@@ -20,19 +20,23 @@ from app.models.feedback import Feedback
 def init_database():
     """初始化数据库"""
     app = create_app()
-    
+
     with app.app_context():
         print("正在创建数据库表...")
-        
+
+        # 确保instance目录存在
+        instance_dir = os.path.join(os.path.dirname(os.path.dirname(os.path.abspath(__file__))), 'instance')
+        os.makedirs(instance_dir, exist_ok=True)
+
         # 创建所有表
         db.create_all()
-        
+
         print("✅ 数据库表创建成功！")
-        
+
         # 检查是否已有用户
         if User.query.first() is None:
             print("正在创建默认管理员用户...")
-            
+
             # 创建默认管理员用户
             admin_user = User(
                 username='admin',
@@ -40,16 +44,16 @@ def init_database():
                 roles='admin,user'
             )
             admin_user.set_password('admin123')
-            
+
             db.session.add(admin_user)
             db.session.commit()
-            
+
             print("✅ 默认管理员用户创建成功！")
             print("   用户名: admin")
             print("   密码: admin123")
         else:
             print("ℹ️  用户已存在，跳过默认用户创建")
-        
+
         print("\n🎉 数据库初始化完成！")
         print("\n📋 数据库表结构:")
         print("   - users: 用户表")

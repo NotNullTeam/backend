@@ -39,20 +39,23 @@ def check_database_initialized():
     """检查数据库是否已初始化"""
     with app.app_context():
         try:
-            # 检查是否有用户表和默认用户
+            # 确保instance目录存在
+            instance_dir = os.path.join(os.path.dirname(os.path.abspath(__file__)), 'instance')
+            os.makedirs(instance_dir, exist_ok=True)
+
+            # 尝试创建表（如果不存在）
+            db.create_all()
+
+            # 检查是否有默认用户
             if User.query.first() is None:
-                print("\n⚠️  检测到数据库未初始化")
-                print("请运行以下命令之一来初始化数据库：")
-                print("  1. flask init-db")
-                print("  2. python scripts/init_db.py")
-                print("  3. python init_db.py (如果文件仍在根目录)")
+                print("\n⚠️  检测到数据库未初始化（无默认用户）")
+                print("请运行以下命令之一来创建默认用户：")
+                print("  1. python scripts/init_db.py")
                 return False
             return True
-        except Exception:
-            print("\n⚠️  数据库连接失败或表不存在")
-            print("请运行以下命令之一来初始化数据库：")
-            print("  1. flask init-db")
-            print("  2. python scripts/init_db.py")
+        except Exception as e:
+            print(f"\n⚠️  数据库初始化失败: {str(e)}")
+            print("请检查数据库配置或运行: python scripts/init_db.py")
             return False
 
 
@@ -67,6 +70,6 @@ if __name__ == '__main__':
     print("\n🚀 启动IP智慧解答专家系统...")
     app.run(
         host='0.0.0.0',
-        port=5000,
+        port=5001,
         debug=True
     )

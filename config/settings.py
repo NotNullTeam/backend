@@ -5,6 +5,7 @@ IP智慧解答专家系统 - 配置管理
 """
 
 import os
+from datetime import timedelta
 from dotenv import load_dotenv
 
 # 项目根目录
@@ -20,17 +21,16 @@ class Config:
 
     # 数据库配置
     SQLALCHEMY_DATABASE_URI = os.environ.get('DATABASE_URL') or \
-        'mysql+pymysql://root:password@localhost/ip_expert'
+        f'sqlite:///{os.path.join(basedir, "instance", "ip_expert.db")}'
     SQLALCHEMY_TRACK_MODIFICATIONS = False
     SQLALCHEMY_ENGINE_OPTIONS = {
         'pool_pre_ping': True,
-        'pool_recycle': 300,
     }
 
     # JWT配置
     JWT_SECRET_KEY = os.environ.get('JWT_SECRET_KEY') or 'jwt-secret-change-in-production'
-    JWT_ACCESS_TOKEN_EXPIRES = int(os.environ.get('JWT_ACCESS_TOKEN_EXPIRES', 3600))  # 1小时
-    JWT_REFRESH_TOKEN_EXPIRES = int(os.environ.get('JWT_REFRESH_TOKEN_EXPIRES', 2592000))  # 30天
+    JWT_ACCESS_TOKEN_EXPIRES = timedelta(seconds=int(os.environ.get('JWT_ACCESS_TOKEN_EXPIRES', 3600)))  # 1小时
+    JWT_REFRESH_TOKEN_EXPIRES = timedelta(seconds=int(os.environ.get('JWT_REFRESH_TOKEN_EXPIRES', 2592000)))  # 30天
 
     # Redis配置
     REDIS_URL = os.environ.get('REDIS_URL') or 'redis://localhost:6379'
@@ -72,7 +72,7 @@ class TestingConfig(Config):
     """测试环境配置"""
     TESTING = True
     SQLALCHEMY_DATABASE_URI = os.environ.get('TEST_DATABASE_URL') or \
-        'mysql+pymysql://root:password@localhost/ip_expert_test'
+        f'sqlite:///{os.path.join(basedir, "instance", "test.db")}'
     WTF_CSRF_ENABLED = False
 
 

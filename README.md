@@ -52,9 +52,8 @@ cp .env.example .env
 SECRET_KEY=your-secret-key
 JWT_SECRET_KEY=your-jwt-secret
 
-# 数据库配置
-DATABASE_URL=mysql+pymysql://root:password@localhost/ip_expert
-REDIS_URL=redis://localhost:6379
+# 数据库配置（SQLite，无需额外配置）
+# 数据库文件将自动创建在 instance/ip_expert.db
 
 # AI服务配置
 DASHSCOPE_API_KEY=your-dashscope-api-key
@@ -62,25 +61,13 @@ ALIBABA_ACCESS_KEY_ID=your-access-key-id
 ALIBABA_ACCESS_KEY_SECRET=your-access-key-secret
 ```
 
-### 4. 启动基础服务
+### 4. 初始化数据库
 ```bash
-# 启动MySQL、Redis、Weaviate等服务
-docker-compose -f docker-compose.local.yml up -d
-```
-
-### 5. 初始化数据库
-```bash
-# 方式1：使用Flask CLI命令（推荐）
-flask init-db
-
-# 方式2：使用管理脚本
-python scripts/manage.py init
-
-# 方式3：使用独立脚本
+# 使用初始化脚本（推荐）
 python scripts/init_db.py
 ```
 
-### 6. 启动应用
+### 5. 启动应用
 ```bash
 python run.py
 ```
@@ -90,6 +77,17 @@ python run.py
 默认管理员账户：
 - **用户名**: `admin`
 - **密码**: `admin123`
+
+### 6. 可选服务（高级功能）
+如果需要使用异步任务或向量搜索功能，可以启动以下服务：
+
+```bash
+# 启动Redis（用于异步任务队列）
+docker-compose -f docker-compose.local.yml --profile redis up -d
+
+# 启动Weaviate（用于向量搜索）
+docker-compose -f docker-compose.local.yml --profile weaviate up -d
+```
 
 ## 🧪 测试
 

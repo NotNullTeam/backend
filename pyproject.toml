@@ -56,6 +56,7 @@ markers = [
     "cases: 案例管理相关测试",
     "interactions: 多轮交互相关测试",
     "feedback: 反馈相关测试",
+    "statistics: 统计API相关测试",
     "slow: 运行较慢的测试"
 ]
 
