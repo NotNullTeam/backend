@@ -1,0 +1,22 @@
+query_defaults:
+  limit: 25
+
+authentication:
+  anonymous_access:
+    enabled: true
+
+persistence:
+  data_path: "./data"
+
+default_vectorizer_module: "none"
+
+enable_modules: []
+
+cluster:
+  hostname: "127.0.0.1"
+
+grpc:
+  port: 50051
+
+api:
+  port: 8080

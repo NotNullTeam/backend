@@ -1,5 +1,5 @@
 """
-IP智慧解答专家系统 - 文档解析服务（简化版）
+IP智慧解答专家系统 - 文档解析服务
 
 专注于阿里云IDP服务，简化备用方案。
 """
@@ -152,6 +152,16 @@ def _simple_text_extraction(file_path: str) -> Dict[str, Any]:
         Dict: 兼容IDP格式的解析结果
     """
     try:
+        # 检查文件扩展名
+        if not file_path.lower().endswith(('.txt', '.md', '.markdown')):
+            return {
+                'layouts': [],
+                'markdown': '',
+                'content': '不支持的文件格式',
+                'format': 'unsupported',
+                'source': 'simple_extraction'
+            }
+
         with open(file_path, 'r', encoding='utf-8') as f:
             content = f.read()
 
@@ -176,7 +186,47 @@ def _simple_text_extraction(file_path: str) -> Dict[str, Any]:
 
     except Exception as e:
         logger.error(f"文本提取失败: {str(e)}")
-        raise Exception(f"文本文件读取失败: {str(e)}")
+        return {
+            'layouts': [],
+            'markdown': '',
+            'content': '不支持的文件格式',
+            'format': 'error',
+            'source': 'simple_extraction'
+        }
+
+
+def _simple_text_split(parsed_result: Dict[str, Any], document, chunk_size: int = 1000) -> List[Dict[str, Any]]:
+    """
+    简单的文本分割函数，用于测试
+
+    Args:
+        parsed_result: 解析结果
+        document: 文档对象
+        chunk_size: 每个块的字符数
+
+    Returns:
+        List[Dict]: 文档块列表
+    """
+    content = parsed_result.get('content', '')
+    chunks = []
+
+    # 简单按字符数分割
+    for i in range(0, len(content), chunk_size):
+        chunk_text = content[i:i + chunk_size]
+        chunk = {
+            'text': chunk_text,
+            'content': chunk_text,
+            'metadata': {
+                'document_id': document.id,
+                'chunk_id': f"chunk_{i // chunk_size}",
+                'start_char': i,
+                'end_char': min(i + chunk_size, len(content)),
+                'chunk_index': i // chunk_size
+            }
+        }
+        chunks.append(chunk)
+
+    return chunks
 
 
 def submit_parsing_job(document_id: str) -> str:

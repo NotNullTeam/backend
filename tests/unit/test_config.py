@@ -23,8 +23,8 @@ class TestConfigClasses:
         # 测试默认值（实际配置可能从环境变量加载）
         assert config.SECRET_KEY is not None
         assert config.JWT_SECRET_KEY is not None
-        assert config.JWT_ACCESS_TOKEN_EXPIRES == 3600
-        assert config.JWT_REFRESH_TOKEN_EXPIRES == 2592000
+        assert config.JWT_ACCESS_TOKEN_EXPIRES.total_seconds() == 3600
+        assert config.JWT_REFRESH_TOKEN_EXPIRES.total_seconds() == 2592000
         assert config.SQLALCHEMY_TRACK_MODIFICATIONS is False
         assert config.MAX_CONTENT_LENGTH == 50 * 1024 * 1024
         assert config.ITEMS_PER_PAGE == 10
@@ -155,8 +155,6 @@ class TestConfigValidation:
 
         # 这些配置项应该是数字
         numeric_configs = [
-            ('JWT_ACCESS_TOKEN_EXPIRES', int),
-            ('JWT_REFRESH_TOKEN_EXPIRES', int),
             ('MAX_CONTENT_LENGTH', int),
             ('ITEMS_PER_PAGE', int)
         ]
@@ -165,6 +163,13 @@ class TestConfigValidation:
             value = getattr(config, config_name)
             assert isinstance(value, expected_type), f"{config_name} should be {expected_type}"
             assert value > 0, f"{config_name} should be positive"
+
+        # JWT配置是timedelta类型
+        from datetime import timedelta
+        assert isinstance(config.JWT_ACCESS_TOKEN_EXPIRES, timedelta)
+        assert isinstance(config.JWT_REFRESH_TOKEN_EXPIRES, timedelta)
+        assert config.JWT_ACCESS_TOKEN_EXPIRES.total_seconds() > 0
+        assert config.JWT_REFRESH_TOKEN_EXPIRES.total_seconds() > 0
 
     def test_boolean_config_values(self):
         """测试布尔型配置"""

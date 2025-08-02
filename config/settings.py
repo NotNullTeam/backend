@@ -48,6 +48,13 @@ class Config:
     ALIBABA_ACCESS_KEY_ID = os.environ.get('ALIBABA_ACCESS_KEY_ID')
     ALIBABA_ACCESS_KEY_SECRET = os.environ.get('ALIBABA_ACCESS_KEY_SECRET')
 
+    # IDP文档解析配置
+    IDP_ENDPOINT = os.environ.get('IDP_ENDPOINT') or 'docmind-api.cn-hangzhou.aliyuncs.com'
+    IDP_DEFAULT_ENABLE_LLM = os.environ.get('IDP_DEFAULT_ENABLE_LLM', 'true').lower() == 'true'
+    IDP_DEFAULT_ENABLE_FORMULA = os.environ.get('IDP_DEFAULT_ENABLE_FORMULA', 'true').lower() == 'true'
+    IDP_MAX_POLLING_ATTEMPTS = int(os.environ.get('IDP_MAX_POLLING_ATTEMPTS', 120))  # 20分钟
+    IDP_POLLING_INTERVAL = int(os.environ.get('IDP_POLLING_INTERVAL', 10))  # 10秒
+
     # OLLAMA本地重排序模型服务配置
     OLLAMA_BASE_URL = os.environ.get('OLLAMA_BASE_URL') or 'http://localhost:11434'
 

@@ -110,7 +110,7 @@ class TestAuthAPI:
     def test_get_current_user_unauthorized(self, client):
         """测试未授权访问"""
         response = client.get('/api/v1/auth/me')
-        assert response.status_code == 422  # JWT missing
+        assert response.status_code == 401  # JWT missing
 
     def test_refresh_token(self, client, auth_headers):
         """测试刷新令牌"""

@@ -114,6 +114,12 @@ def admin_headers(client):
 @pytest.fixture
 def test_user():
     """创建测试用户"""
+    # 先检查是否已存在同名用户，如果存在则删除
+    existing_user = User.query.filter_by(username='testuser').first()
+    if existing_user:
+        db.session.delete(existing_user)
+        db.session.commit()
+
     user = User(
         username='testuser',
         email='test@example.com',
@@ -122,7 +128,12 @@ def test_user():
     user.set_password('testpass')
     db.session.add(user)
     db.session.commit()
-    return user
+
+    yield user
+
+    # 清理用户数据
+    db.session.delete(user)
+    db.session.commit()
 
 
 @pytest.fixture
@@ -151,7 +162,9 @@ def test_document(test_user):
         file_path=temp_file.name,
         file_size=20,
         mime_type='text/plain',
-        user_id=test_user.id
+        user_id=test_user.id,
+        vendor='Huawei',
+        tags=['network', 'router']
     )
     db.session.add(document)
     db.session.commit()

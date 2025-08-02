@@ -4,7 +4,7 @@
 
 ### 后端技术栈
 - **框架**: Flask + SQLAlchemy + Flask-Migrate
-- **数据库**: MySQL (关系数据) + Weaviate (向量数据)
+- **数据库**: SQLite (轻量级本地数据库) + Weaviate (向量数据)
 - **任务队列**: Redis + RQ
 - **AI服务**: 阿里云百炼平台 (Qwen模型) + 文档智能
 - **Agent框架**: LangGraph
@@ -19,9 +19,7 @@
 
 ### 环境要求
 - Python 3.8+
-- Docker & Docker Compose
-- MySQL 8.0+
-- Redis 7+
+- Redis 7+ (可选，用于异步任务)
 
 ### 1. 克隆项目
 ```bash
@@ -52,7 +50,7 @@ cp .env.example .env
 SECRET_KEY=your-secret-key
 JWT_SECRET_KEY=your-jwt-secret
 
-# 数据库配置（SQLite，无需额外配置）
+# 数据库配置（SQLite，零配置）
 # 数据库文件将自动创建在 instance/ip_expert.db
 
 # AI服务配置
@@ -79,15 +77,22 @@ python run.py
 - **密码**: `admin123`
 
 ### 6. 可选服务（高级功能）
-如果需要使用异步任务或向量搜索功能，可以启动以下服务：
+如果需要使用异步任务或向量搜索功能：
 
+**选项1：使用模拟服务器（推荐开发测试）**
 ```bash
-# 启动Redis（用于异步任务队列）
-docker-compose -f docker-compose.local.yml --profile redis up -d
-
-# 启动Weaviate（用于向量搜索）
-docker-compose -f docker-compose.local.yml --profile weaviate up -d
+# 启动模拟Weaviate服务器
+python bin/mock_weaviate.py
 ```
+
+**选项2：本地安装Weaviate**
+```bash
+# 下载并运行本地Weaviate（推荐使用模拟服务器）
+# 或参考官方文档进行本地二进制部署
+# https://weaviate.io/developers/weaviate/installation/local-deployment
+```
+
+注意：系统仅支持本地Weaviate实例，不支持云端服务。推荐使用模拟服务器进行开发测试。
 
 ## 🧪 测试
 
@@ -176,7 +181,6 @@ backend/
 ├── run.py                 # 应用启动文件
 ├── requirements.txt       # 依赖包列表
 ├── pyproject.toml         # 项目配置和工具配置
-├── docker-compose.local.yml # 本地开发环境
 ├── .vscode/               # VSCode配置
 │   └── pyrightconfig.json # 类型检查配置
 └── .env.example          # 环境变量示例
@@ -263,13 +267,16 @@ rq empty failed
 4. 配置反向代理（Nginx）
 5. 使用 Gunicorn 作为 WSGI 服务器
 
-### Docker 部署
+### 传统部署
 ```bash
-# 构建镜像
-docker build -t ip-expert-backend .
+# 安装依赖
+pip install -r requirements.txt
 
-# 运行容器
-docker run -p 5000:5000 ip-expert-backend
+# 配置环境变量
+export FLASK_ENV=production
+
+# 使用Gunicorn启动
+gunicorn -w 4 -b 0.0.0.0:5000 run:app
 ```
 
 ## 🔍 故障排除
@@ -281,8 +288,8 @@ docker run -p 5000:5000 ip-expert-backend
    - 检查 Python 路径配置
 
 2. **数据库连接失败**
-   - 确认 Docker 服务运行状态
    - 检查数据库配置和网络连接
+   - 确认数据库服务已启动
 
 3. **端口占用**
    - 修改 `run.py` 中的端口配置
@@ -293,9 +300,9 @@ docker run -p 5000:5000 ip-expert-backend
 # 应用日志
 tail -f logs/ip_expert.log
 
-# Docker 服务日志
-docker-compose -f docker-compose.local.yml logs mysql
-docker-compose -f docker-compose.local.yml logs redis
+# 如果使用本地服务，查看服务状态
+systemctl status redis     # Linux (如果使用Redis)
+brew services list        # macOS
 ```
 
 ## 📚 文档

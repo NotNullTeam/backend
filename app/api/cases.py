@@ -904,6 +904,9 @@ def submit_feedback(case_id):
             'status': 'success',
             'data': {
                 'feedbackId': feedback.id,
+                'outcome': feedback.outcome,
+                'rating': feedback.rating,
+                'comment': feedback.comment,
                 'message': '反馈已收到',
                 'caseStatus': case.status
             }
@@ -1025,7 +1028,7 @@ def update_feedback(case_id):
                 'status': 'error',
                 'error': {
                     'type': 'NOT_FOUND',
-                    'message': '该案例暂无反馈'
+                    'message': '反馈不存在'
                 }
             }), 404
 

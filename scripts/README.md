@@ -1,12 +1,33 @@
-# 项目管理脚本
+# IP智慧解答专家系统 - 脚本管理
 
-本目录包含项目的各种管理和工具脚本。
+本目录包含项目的各种管理和工具脚本，按功能分类组织。
 
-## 脚本说明
+## 📁 目录结构
 
-### `manage.py` - 项目管理工具
-统一的项目管理入口，提供数据库初始化、环境检查等功能。
+```
+scripts/
+├── manage.py                    # 主管理脚本入口
+├── database/                    # 数据库管理脚本
+│   ├── init_db.py              # 数据库初始化
+│   └── setup_vector_db.py      # 向量数据库设置
+├── development/                 # 开发工具脚本
+│   ├── run_tests.py            # 测试运行器
+│   ├── test_vector_service.py  # 向量服务测试
+│   └── check_code_quality.py   # 代码质量检查
+├── deployment/                  # 部署相关脚本
+│   ├── start_weaviate.py       # 启动Weaviate服务
+│   └── worker.py               # RQ Worker进程
+├── demos/                       # 演示脚本
+│   └── demo_hybrid_retrieval.py # 混合检索演示
+├── maintenance/                 # 维护脚本
+│   ├── backup_data.py          # 数据备份
+│   └── health_check.py         # 系统健康检查
+└── README.md                    # 本文件
+```
 
+## 🚀 快速开始
+
+### 主管理脚本
 ```bash
 # 初始化数据库
 python scripts/manage.py init
@@ -16,6 +37,66 @@ python scripts/manage.py reset
 
 # 检查开发环境
 python scripts/manage.py check
+```
+
+## 📋 脚本分类说明
+
+### 1. 数据库管理 (`database/`)
+数据库相关的初始化、配置和维护脚本。
+
+```bash
+# 初始化主数据库
+python scripts/database/init_db.py
+
+# 设置向量数据库
+python scripts/database/setup_vector_db.py
+```
+
+### 2. 开发工具 (`development/`)
+开发过程中使用的测试、调试和质量检查工具。
+
+```bash
+# 运行测试套件
+python scripts/development/run_tests.py --type all
+
+# 测试向量服务
+python scripts/development/test_vector_service.py
+
+# 代码质量检查
+python scripts/development/check_code_quality.py
+```
+
+### 3. 部署脚本 (`deployment/`)
+生产环境部署和服务管理脚本。
+
+```bash
+# 启动Weaviate向量数据库
+python scripts/deployment/start_weaviate.py
+
+# 启动RQ Worker进程
+python scripts/deployment/worker.py
+```
+
+### 4. 演示脚本 (`demos/`)
+功能演示和使用示例脚本。
+
+```bash
+# 混合检索算法演示
+python scripts/demos/demo_hybrid_retrieval.py
+```
+
+### 5. 维护脚本 (`maintenance/`)
+系统维护、监控和数据管理脚本。
+
+```bash
+# 数据备份
+python scripts/maintenance/backup_data.py
+
+# 系统健康检查
+python scripts/maintenance/health_check.py
+
+# 清理旧备份文件
+python scripts/maintenance/backup_data.py --cleanup-days 30
 ```
 
 ### `init_db.py` - 数据库初始化脚本

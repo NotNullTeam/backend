@@ -13,6 +13,7 @@ from app import create_app, db
 from app.models.case import Case, Node, Edge
 from app.services import get_task_queue
 from app.services.task_monitor import with_monitoring_and_retry
+from app.services.hybrid_retrieval import get_hybrid_retrieval, search_knowledge
 
 logger = logging.getLogger(__name__)
 
@@ -31,9 +32,19 @@ class LLMService:
 
 
 class RetrievalService:
-    """检索服务（占位符）"""
-    def search(self, query: str) -> List[Dict[str, Any]]:
-        return []  # 返回空列表作为占位符
+    """检索服务 - 使用混合检索算法"""
+    def __init__(self):
+        self.hybrid_retrieval = get_hybrid_retrieval()
+
+    def search(self, query: str, filters: Optional[Dict[str, Any]] = None) -> List[Dict[str, Any]]:
+        """执行混合检索"""
+        try:
+            results = search_knowledge(query, filters=filters, top_k=10)
+            logger.info(f"检索到 {len(results)} 个相关结果")
+            return results
+        except Exception as e:
+            logger.error(f"检索失败: {str(e)}")
+            return []
 
 
 @with_monitoring_and_retry(max_retries=3, retry_intervals=[10, 30, 60])

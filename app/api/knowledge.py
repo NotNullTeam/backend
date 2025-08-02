@@ -331,8 +331,9 @@ def delete_document(doc_id):
         # 删除向量数据库中的数据
         try:
             from app.services.vector_service import delete_document_vectors
-            delete_document_vectors.delay(doc_id)
-        except ImportError:
+            # 直接调用函数而不是使用 Celery 的 delay 方法
+            delete_document_vectors(doc_id)
+        except (ImportError, AttributeError):
             # 如果服务还未实现，暂时跳过
             current_app.logger.warning("Vector service not available")
 
@@ -460,7 +461,7 @@ def update_document_metadata(doc_id):
             }), 404
 
         # 获取请求数据
-        data = request.get_json()
+        data = request.get_json(force=True, silent=True)
         if not data:
             return jsonify({
                 'code': 400,

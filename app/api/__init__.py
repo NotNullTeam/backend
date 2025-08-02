@@ -10,4 +10,7 @@ from flask import Blueprint
 bp = Blueprint('api', __name__)
 
 # 导入所有API模块以注册路由
-from app.api import auth, cases, knowledge, statistics, files, user_settings, notifications, tasks
+from app.api import auth, cases, knowledge, statistics, files, user_settings, notifications, tasks, idp, search
+
+# 注册向量API蓝图
+from app.api.vector_api import vector_bp

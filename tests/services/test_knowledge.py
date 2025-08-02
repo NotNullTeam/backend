@@ -156,13 +156,13 @@ class TestKnowledgeAPI:
     def test_unauthorized_access(self, client):
         """测试未授权访问"""
         response = client.get('/api/v1/knowledge/documents')
-        assert response.status_code == 422  # JWT missing
+        assert response.status_code == 401  # JWT missing
 
         test_file = io.BytesIO(b'Test content')
         response = client.post('/api/v1/knowledge/documents',
                              data={'file': (test_file, 'test.txt')},
                              content_type='multipart/form-data')
-        assert response.status_code == 422
+        assert response.status_code == 401
 
     def test_access_other_user_document(self, client, auth_headers):
         """测试访问其他用户的文档"""

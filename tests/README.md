@@ -1,287 +1,194 @@
-# IP智慧解答专家系统 - 测试指南
+# IP智慧解答专家系统 - 测试套件
 
-本文档提供了项目测试的完整指南，包括测试运行、覆盖率报告和测试最佳实践。
+本目录包含项目的所有测试用例，按照模块和测试类型进行组织。
 
-## 📋 测试概览
+## 📁 目录结构
 
-### 测试结构
 ```
 tests/
-├── unit/                    # 单元测试
-│   ├── __init__.py         # 单元测试包初始化
-│   ├── test_models.py      # 数据模型单元测试
-│   └── test_config.py      # 配置类单元测试
-├── integration/             # 集成测试
-│   ├── __init__.py         # 集成测试包初始化
-│   ├── test_database.py    # 数据库集成测试
-│   └── test_config.py      # 配置集成测试
-├── api/                     # API测试
-│   ├── __init__.py         # API测试包初始化
-│   ├── test_auth_api.py    # 认证API测试
-│   ├── test_cases_api.py   # 案例管理API测试
-│   ├── test_interactions_api.py # 多轮交互API测试
-│   └── test_feedback_api.py # 反馈API测试
-├── conftest.py             # pytest配置和fixture
-└── README.md              # 本文档
+├── api/              # API层测试
+│   ├── test_auth.py          # 认证API测试
+│   ├── test_auth_api.py      # 认证API详细测试
+│   ├── test_basic_api.py     # 基础API测试
+│   ├── test_cases.py         # 案例API测试
+│   ├── test_cases_api.py     # 案例API详细测试
+│   ├── test_feedback_api.py  # 反馈API测试
+│   ├── test_interactions_api.py  # 交互API测试
+│   └── test_statistics_api.py    # 统计API测试
+├── services/         # 服务层测试
+│   ├── test_services.py         # 通用服务测试
+│   ├── test_vector_service.py   # 向量服务测试
+│   ├── test_hybrid_retrieval.py # 混合检索测试
+│   ├── test_hybrid_retrieval_core.py # 混合检索核心测试
+│   └── test_knowledge.py       # 知识库服务测试
+├── models/           # 模型层测试
+│   └── test_models.py          # 数据模型测试
+├── integration/      # 集成测试
+│   ├── test_config.py          # 配置集成测试
+│   ├── test_database.py        # 数据库集成测试
+│   ├── test_vector_setup.py    # 向量数据库设置测试
+│   └── test_weaviate.py        # Weaviate集成测试
+├── unit/             # 单元测试
+│   ├── test_config.py          # 配置单元测试
+│   └── __init__.py
+├── fixtures/         # 测试夹具和数据
+│   └── __init__.py
+├── conftest.py       # pytest配置和共享夹具
+└── README.md         # 本文件
 ```
 
-### 测试类型
-- **单元测试** (`@pytest.mark.unit`): 测试独立的函数和方法
-  - 配置类测试
-  - 数据模型测试
-  - 工具函数测试
-- **集成测试** (`@pytest.mark.integration`): 测试组件间的交互
-  - 数据库操作测试
-  - 错误处理器测试
-  - 配置集成测试
-- **API测试** (`@pytest.mark.api`): 测试HTTP API接口
-  - 认证API测试 (`@pytest.mark.auth`)
-  - 案例管理API测试 (`@pytest.mark.cases`)
-  - 多轮交互API测试 (`@pytest.mark.interactions`)
-  - 反馈API测试 (`@pytest.mark.feedback`)
+## 🚀 运行测试
 
-## 🚀 快速开始
+### 使用便捷脚本
 
-### 1. 安装测试依赖
 ```bash
-# 激活虚拟环境
-source .venv/bin/activate
+# 运行所有测试
+python run_tests.py
 
-# 安装测试依赖
-pip install -r requirements.txt
+# 运行特定类型的测试
+python run_tests.py --type api          # API层测试
+python run_tests.py --type services     # 服务层测试
+python run_tests.py --type models       # 模型层测试
+python run_tests.py --type integration  # 集成测试
+python run_tests.py --type unit         # 单元测试
+
+# 生成覆盖率报告
+python run_tests.py --coverage
+
+# 并行运行测试（需要安装pytest-xdist）
+python run_tests.py --parallel
+
+# 详细输出
+python run_tests.py --verbose
 ```
 
-### 2. 运行所有测试
+### 直接使用pytest
+
 ```bash
 # 运行所有测试
 pytest
 
-# 运行测试并显示覆盖率
-pytest --cov=app --cov-report=term-missing
-```
-
-### 3. 运行特定测试
-```bash
-# 按测试类型运行
-pytest -m unit                    # 运行单元测试
-pytest -m integration             # 运行集成测试
-pytest -m api                     # 运行API测试
-
-# 按功能模块运行
-pytest -m auth                    # 运行认证相关测试
-pytest -m cases                   # 运行案例管理测试
-pytest -m interactions            # 运行多轮交互测试
-pytest -m feedback                # 运行反馈测试
-
-# 按目录运行
-pytest tests/unit/                # 运行所有单元测试
-pytest tests/integration/         # 运行所有集成测试
-pytest tests/api/                 # 运行所有API测试
+# 运行特定目录的测试
+pytest tests/api/                    # API测试
+pytest tests/services/               # 服务层测试
+pytest tests/models/                 # 模型层测试
+pytest tests/integration/            # 集成测试
 
 # 运行特定测试文件
-pytest tests/api/test_cases_api.py
+pytest tests/services/test_hybrid_retrieval_core.py
 
-# 运行特定测试类
-pytest tests/api/test_cases_api.py::TestCasesListAPI
+# 运行带标记的测试
+pytest -m "unit"                     # 单元测试
+pytest -m "integration"              # 集成测试
+pytest -m "api"                      # API测试
+pytest -m "hybrid_retrieval"         # 混合检索测试
 
-# 运行特定测试方法
-pytest tests/api/test_cases_api.py::TestCasesListAPI::test_get_cases_success
+# 生成覆盖率报告
+pytest --cov=app --cov-report=html --cov-report=term-missing
+
+# 并行测试
+pytest -n auto
 ```
 
-## 📊 测试覆盖率
+## 🏷️ 测试标记
 
-### 生成覆盖率报告
-```bash
-# 生成终端覆盖率报告
-pytest --cov=app --cov-report=term-missing
+测试用例使用以下标记进行分类：
 
-# 生成HTML覆盖率报告
-pytest --cov=app --cov-report=html
+- `@pytest.mark.unit` - 单元测试
+- `@pytest.mark.integration` - 集成测试
+- `@pytest.mark.api` - API测试
+- `@pytest.mark.services` - 服务层测试
+- `@pytest.mark.models` - 模型层测试
+- `@pytest.mark.slow` - 慢速测试
+- `@pytest.mark.auth` - 认证相关测试
+- `@pytest.mark.vector` - 向量服务测试
+- `@pytest.mark.knowledge` - 知识库测试
+- `@pytest.mark.hybrid_retrieval` - 混合检索测试
 
-# 生成XML覆盖率报告（用于CI/CD）
-pytest --cov=app --cov-report=xml
-```
+## 📋 测试类型说明
 
-### 查看覆盖率报告
-```bash
-# 查看HTML报告
-open htmlcov/index.html
+### API层测试 (`tests/api/`)
+测试REST API端点的功能，包括：
+- 请求/响应格式验证
+- HTTP状态码检查
+- 认证和授权
+- 输入验证和错误处理
 
-# 或在浏览器中打开
-python -m http.server 8000 -d htmlcov
-```
+### 服务层测试 (`tests/services/`)
+测试业务逻辑和服务层功能，包括：
+- 核心业务逻辑
+- 外部服务集成
+- 数据处理算法
+- 混合检索算法
 
-### 覆盖率目标
-- **总体覆盖率**: ≥ 80%
-- **认证模块**: ≥ 90%
-- **数据模型**: ≥ 85%
-- **API接口**: ≥ 85%
+### 模型层测试 (`tests/models/`)
+测试数据模型和数据库操作，包括：
+- 模型字段验证
+- 数据库约束
+- 关系映射
+- CRUD操作
 
-## 🔧 测试配置
+### 集成测试 (`tests/integration/`)
+测试组件间的集成，包括：
+- 数据库连接
+- 外部服务集成
+- 端到端流程
+- 配置加载
 
-### pytest配置 (pytest.ini)
-```ini
-[tool:pytest]
-testpaths = tests
-python_files = test_*.py
-python_classes = Test*
-python_functions = test_*
-addopts = 
-    -v
-    --tb=short
-    --strict-markers
-    --disable-warnings
-    --cov=app
-    --cov-report=term-missing
-    --cov-report=html:htmlcov
-    --cov-fail-under=80
-```
+### 单元测试 (`tests/unit/`)
+测试单个函数和类的功能，包括：
+- 函数输入输出
+- 边界条件
+- 异常处理
+- 配置逻辑
 
-### 测试标记
-- `@pytest.mark.unit`: 单元测试
-- `@pytest.mark.integration`: 集成测试
-- `@pytest.mark.auth`: 认证相关测试
-- `@pytest.mark.models`: 模型测试
-- `@pytest.mark.api`: API测试
-- `@pytest.mark.slow`: 运行较慢的测试
+## 🔧 配置文件
 
-### 环境变量
-测试使用独立的配置，主要特点：
-- 使用内存SQLite数据库
-- 禁用CSRF保护
-- 禁用JWT过期检查
-- 启用测试模式
+- `pytest.ini` - pytest配置文件
+- `conftest.py` - 共享测试夹具和配置
+- `run_tests.py` - 便捷的测试运行脚本
 
-## 📝 测试最佳实践
+## 📊 覆盖率报告
 
-### 1. 测试命名
-```python
-def test_should_return_success_when_valid_credentials():
-    """测试：当提供有效凭据时应该返回成功"""
-    pass
+运行带覆盖率的测试后，可以在以下位置查看报告：
+- 终端输出：覆盖率摘要
+- `htmlcov/index.html`：详细的HTML覆盖率报告
 
-def test_should_raise_error_when_invalid_input():
-    """测试：当输入无效时应该抛出错误"""
-    pass
-```
+## 💡 最佳实践
 
-### 2. 使用Fixture
-```python
-def test_user_creation(database, sample_user):
-    """使用fixture提供测试数据"""
-    assert sample_user.username == 'testuser'
-    assert sample_user.is_active is True
-```
-
-### 3. 测试隔离
-- 每个测试函数都使用独立的数据库
-- 测试之间不共享状态
-- 使用事务回滚确保数据清理
-
-### 4. 断言最佳实践
-```python
-# 好的断言
-assert response.status_code == 200
-assert 'access_token' in data
-assert user.username == 'expected_username'
-
-# 避免的断言
-assert response.status_code != 500  # 太宽泛
-assert data  # 不够具体
-```
+1. **测试命名**：使用描述性的测试函数名
+2. **测试分组**：相关测试放在同一个类中
+3. **使用标记**：为测试添加适当的标记
+4. **夹具使用**：利用pytest夹具复用测试代码
+5. **断言清晰**：使用清晰的断言消息
+6. **独立性**：确保测试之间的独立性
 
 ## 🐛 调试测试
 
-### 1. 运行失败的测试
 ```bash
-# 只运行上次失败的测试
-pytest --lf
-
-# 运行失败的测试并停在第一个失败
+# 运行失败时立即停止
 pytest -x
 
-# 显示详细的错误信息
-pytest -vvv
-```
+# 显示详细错误信息
+pytest -v --tb=long
 
-### 2. 使用pdb调试
-```python
-def test_debug_example():
-    import pdb; pdb.set_trace()
-    # 测试代码
-```
+# 运行特定测试
+pytest tests/services/test_hybrid_retrieval_core.py::TestHybridRetrievalCore::test_extract_keywords
 
-### 3. 查看测试输出
-```bash
-# 显示print输出
-pytest -s
-
-# 显示详细日志
-pytest --log-cli-level=DEBUG
+# 进入调试模式
+pytest --pdb
 ```
 
 ## 📈 持续集成
 
-### GitHub Actions示例
+测试套件支持在CI/CD流水线中运行：
+
 ```yaml
-name: Tests
-on: [push, pull_request]
-jobs:
-  test:
-    runs-on: ubuntu-latest
-    steps:
-    - uses: actions/checkout@v2
-    - name: Set up Python
-      uses: actions/setup-python@v2
-      with:
-        python-version: 3.9
-    - name: Install dependencies
-      run: |
-        pip install -r requirements.txt
-    - name: Run tests
-      run: |
-        pytest --cov=app --cov-report=xml
-    - name: Upload coverage
-      uses: codecov/codecov-action@v1
+# GitHub Actions示例
+- name: Run tests
+  run: |
+    python run_tests.py --coverage
+    
+- name: Upload coverage
+  uses: codecov/codecov-action@v1
 ```
-
-## 🔍 测试检查清单
-
-### 新功能测试检查
-- [ ] 单元测试覆盖所有公共方法
-- [ ] 集成测试覆盖主要用例
-- [ ] 错误情况测试
-- [ ] 边界条件测试
-- [ ] 性能测试（如需要）
-
-### 代码审查检查
-- [ ] 测试名称清晰描述测试目的
-- [ ] 测试独立且可重复
-- [ ] 使用适当的断言
-- [ ] 测试覆盖率满足要求
-- [ ] 没有跳过的测试（除非有充分理由）
-
-## 🆘 常见问题
-
-### Q: 测试数据库连接失败
-A: 确保测试使用内存数据库，检查conftest.py中的配置。
-
-### Q: 测试运行很慢
-A: 使用`-m "not slow"`跳过慢速测试，或优化测试数据。
-
-### Q: 覆盖率不达标
-A: 运行`pytest --cov=app --cov-report=html`查看详细报告，补充缺失的测试。
-
-### Q: JWT令牌测试失败
-A: 确保测试配置中禁用了JWT过期检查。
-
-## 📚 相关资源
-
-- [pytest官方文档](https://docs.pytest.org/)
-- [pytest-flask文档](https://pytest-flask.readthedocs.io/)
-- [pytest-cov文档](https://pytest-cov.readthedocs.io/)
-- [Flask测试指南](https://flask.palletsprojects.com/en/2.3.x/testing/)
-
----
-
-**注意**: 在提交代码前，请确保所有测试通过且覆盖率达到要求。
