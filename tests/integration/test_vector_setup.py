@@ -15,9 +15,9 @@ import logging
 # 添加项目根目录到Python路径
 sys.path.insert(0, os.path.abspath(os.path.join(os.path.dirname(__file__), '..', '..')))
 
-from app.services.embedding_service import get_embedding_service
-from app.services.vector_service import get_vector_service
-from app.services.vector_db_config import vector_db_config
+from app.services.ai.embedding_service import get_embedding_service
+from app.services.retrieval.vector_service import get_vector_service
+from app.services.storage.vector_db_config import vector_db_config
 
 # 配置日志
 logging.basicConfig(

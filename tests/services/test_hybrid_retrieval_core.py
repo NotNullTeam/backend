@@ -22,7 +22,7 @@ class TestHybridRetrievalCore:
         # Mock外部依赖
         with patch('app.services.hybrid_retrieval.get_vector_service'), \
              patch('app.services.hybrid_retrieval.get_embedding_service'):
-            from app.services.hybrid_retrieval import HybridRetrieval
+            from app.services.retrieval.hybrid_retrieval import HybridRetrieval
             self.retrieval = HybridRetrieval(
                 vector_weight=0.7,
                 keyword_weight=0.3,
@@ -94,7 +94,7 @@ class TestHybridRetrievalCore:
 
     def test_calculate_quality_score(self):
         """测试质量评分"""
-        from app.services.hybrid_retrieval import SearchResult
+        from app.services.retrieval.hybrid_retrieval import SearchResult
 
         result = SearchResult(
             content="这是一个详细的配置指南，包含以下步骤：1. 基础配置 2. 高级配置 3. 故障排查。每个步骤都有详细的说明和命令示例，帮助用户快速掌握配置方法。",
@@ -111,7 +111,7 @@ class TestHybridRetrievalCore:
 
     def test_fuse_results(self):
         """测试结果融合"""
-        from app.services.hybrid_retrieval import SearchResult
+        from app.services.retrieval.hybrid_retrieval import SearchResult
 
         vector_results = [
             SearchResult(

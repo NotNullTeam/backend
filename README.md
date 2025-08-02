@@ -99,18 +99,18 @@ python bin/mock_weaviate.py
 ### 运行测试套件
 ```bash
 # 环境检查
-python scripts/run_tests.py check
+python scripts/development/run_tests.py check
 
 # 运行所有测试
-python scripts/run_tests.py all
+python scripts/development/run_tests.py all
 
 # 运行特定模块测试
-python scripts/run_tests.py auth      # 认证API测试
-python scripts/run_tests.py models    # 数据模型测试
-python scripts/run_tests.py api       # API测试
+python scripts/development/run_tests.py auth      # 认证API测试
+python scripts/development/run_tests.py models    # 数据模型测试
+python scripts/development/run_tests.py api       # API测试
 
 # 生成覆盖率报告
-python scripts/run_tests.py coverage
+python scripts/development/run_tests.py coverage
 
 # 或者直接使用pytest（推荐）
 pytest                        # 运行所有测试

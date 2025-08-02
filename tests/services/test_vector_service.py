@@ -6,8 +6,8 @@ import pytest
 import os
 from unittest.mock import patch, MagicMock
 from app import create_app
-from app.services.vector_service import VectorService, get_vector_service
-from app.services.embedding_service import QwenEmbedding
+from app.services.retrieval.vector_service import VectorService, get_vector_service
+from app.services.ai.embedding_service import QwenEmbedding
 
 
 class TestVectorServiceIntegration:
@@ -160,7 +160,7 @@ class TestWeaviateConnection:
 
     def test_weaviate_configuration(self):
         """测试Weaviate配置"""
-        from app.services.vector_db_config import vector_db_config
+        from app.services.storage.vector_db_config import vector_db_config
 
         assert vector_db_config.is_valid()
         assert vector_db_config.config['url'] == 'http://localhost:8080'

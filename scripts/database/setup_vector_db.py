@@ -164,8 +164,8 @@ def test_setup():
 
         # 导入测试
         print("正在测试向量服务...")
-        from app.services.vector_service import get_vector_service
-        from app.services.vector_db_config import vector_db_config
+        from app.services.retrieval.vector_service import get_vector_service
+        from app.services.storage.vector_db_config import vector_db_config
 
         print(f"向量数据库类型: {vector_db_config.db_type.value}")
         print(f"配置是否有效: {vector_db_config.is_valid()}")

@@ -50,12 +50,8 @@ def create_app(config_class=Config):
         redis_client = None
 
     # 注册蓝图
-    from app.api import bp as api_bp
-    app.register_blueprint(api_bp, url_prefix='/api/v1')
-
-    # 注册向量API蓝图
-    from app.api.vector_api import vector_bp
-    app.register_blueprint(vector_bp)
+    from app.api.v1 import v1_bp
+    app.register_blueprint(v1_bp)
 
     # 注册错误处理器
     from app.errors import register_error_handlers

@@ -43,23 +43,23 @@ tests/
 
 ```bash
 # 运行所有测试
-python run_tests.py
+python scripts/development/run_tests.py
 
 # 运行特定类型的测试
-python run_tests.py --type api          # API层测试
-python run_tests.py --type services     # 服务层测试
-python run_tests.py --type models       # 模型层测试
-python run_tests.py --type integration  # 集成测试
-python run_tests.py --type unit         # 单元测试
+python scripts/development/run_tests.py --type api          # API层测试
+python scripts/development/run_tests.py --type services     # 服务层测试
+python scripts/development/run_tests.py --type models       # 模型层测试
+python scripts/development/run_tests.py --type integration  # 集成测试
+python scripts/development/run_tests.py --type unit         # 单元测试
 
 # 生成覆盖率报告
-python run_tests.py --coverage
+python scripts/development/run_tests.py --coverage
 
 # 并行运行测试（需要安装pytest-xdist）
-python run_tests.py --parallel
+python scripts/development/run_tests.py --parallel
 
 # 详细输出
-python run_tests.py --verbose
+python scripts/development/run_tests.py --verbose
 ```
 
 ### 直接使用pytest

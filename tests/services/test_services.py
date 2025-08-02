@@ -9,7 +9,7 @@ import tempfile
 import os
 from datetime import datetime
 from unittest.mock import patch, MagicMock
-from app.services.document_service import parse_document, _simple_text_extraction, _simple_text_split
+from app.services.document.document_service import parse_document, _simple_text_extraction, _simple_text_split
 from app.models.knowledge import KnowledgeDocument, ParsingJob
 from app.models.case import Case, Node
 from app import db

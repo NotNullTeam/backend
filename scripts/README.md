@@ -12,7 +12,9 @@ scripts/
 │   └── setup_vector_db.py      # 向量数据库设置
 ├── development/                 # 开发工具脚本
 │   ├── run_tests.py            # 测试运行器
-│   ├── test_vector_service.py  # 向量服务测试
+│   ├── run_api_tests.py        # API响应测试运行器
+│   ├── test_model_connection.py # LLM模型连接测试
+│   ├── test_prompts.py         # 提示词工程测试
 │   └── check_code_quality.py   # 代码质量检查
 ├── deployment/                  # 部署相关脚本
 │   ├── start_weaviate.py       # 启动Weaviate服务
@@ -59,8 +61,16 @@ python scripts/database/setup_vector_db.py
 # 运行测试套件
 python scripts/development/run_tests.py --type all
 
-# 测试向量服务
-python scripts/development/test_vector_service.py
+# 运行API响应测试（推荐）
+python scripts/development/run_api_tests.py                    # 所有API测试
+python scripts/development/run_api_tests.py auth              # 认证模块测试
+python scripts/development/run_api_tests.py --coverage        # 带覆盖率报告
+
+# 测试LLM模型连接
+python scripts/development/test_model_connection.py
+
+# 测试提示词工程
+python scripts/development/test_prompts.py
 
 # 代码质量检查
 python scripts/development/check_code_quality.py

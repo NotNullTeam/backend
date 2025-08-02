@@ -6,7 +6,7 @@ IP智慧解答专家系统 - 混合检索算法测试
 
 import pytest
 from unittest.mock import Mock, patch
-from app.services.hybrid_retrieval import HybridRetrieval, SearchResult, search_knowledge
+from app.services.retrieval.hybrid_retrieval import HybridRetrieval, SearchResult, search_knowledge
 
 
 @pytest.mark.hybrid_retrieval

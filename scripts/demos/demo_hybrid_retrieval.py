@@ -12,7 +12,7 @@ import os
 sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__)))))
 
 from app import create_app
-from app.services.hybrid_retrieval import search_knowledge, get_hybrid_retrieval
+from app.services.retrieval.hybrid_retrieval import search_knowledge, get_hybrid_retrieval
 import json
 import logging
 
