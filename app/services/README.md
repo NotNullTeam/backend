@@ -1,4 +1,4 @@
-# 服务模块重构
+# 服务模块
 
 ## 目录结构
 
@@ -74,6 +74,9 @@ from app.services import (
     LLMService,
     IDPService,
     get_cache_service,
+    cache_service,
+    cached_llm_call,
+    cached_retrieval_call,
     get_vector_service,
     with_monitoring_and_retry
 )

@@ -55,11 +55,11 @@ def test_embedding_service():
         print(f"批量向量化成功，处理了 {len(vectors)} 个文本")
 
         print("✅ 嵌入服务测试通过")
-        return True
+        assert True  # 测试通过
 
     except Exception as e:
         print(f"❌ 嵌入服务测试失败: {str(e)}")
-        return False
+        assert False, f"嵌入服务测试失败: {str(e)}"
 
 
 def test_vector_database():
@@ -80,7 +80,7 @@ def test_vector_database():
             print("✅ 向量数据库连接测试通过")
         else:
             print("❌ 向量数据库连接测试失败")
-            return False
+            assert False, "测试失败"
 
         # 测试数据
         test_chunks = [
@@ -121,13 +121,13 @@ def test_vector_database():
         if vector_service.delete_document(document_id):
             print("✅ 测试数据清理成功")
 
-        return True
+        assert True  # 测试通过
 
     except Exception as e:
         print(f"❌ 向量数据库测试失败: {str(e)}")
         import traceback
         traceback.print_exc()
-        return False
+        assert False, "测试失败"
 
 
 def main():
@@ -142,7 +142,7 @@ def main():
         print(f"✅ DASHSCOPE_API_KEY: {dashscope_key[:10]}...")
     else:
         print("❌ DASHSCOPE_API_KEY 未设置")
-        return False
+        assert False, "测试失败"
 
     # 运行测试
     tests = [

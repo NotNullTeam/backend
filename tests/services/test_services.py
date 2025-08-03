@@ -69,9 +69,9 @@ class TestDocumentService:
             assert all('metadata' in chunk for chunk in chunks)
             assert all(chunk['metadata']['document_id'] == 'test-doc' for chunk in chunks)
 
-    @patch('app.services.document_service.IDPService')
-    @patch('app.services.document_service.SemanticSplitter')
-    @patch('app.services.document_service.VectorService')
+    @patch('app.services.document.document_service.IDPService')
+    @patch('app.services.document.document_service.SemanticSplitter')
+    @patch('app.services.document.document_service.VectorService')
     def test_parse_document_success(self, mock_vector, mock_splitter, mock_idp, app, test_document):
         """测试文档解析成功"""
         with app.app_context():
@@ -133,9 +133,9 @@ class TestDocumentService:
             # 应该不会抛出异常，只是记录错误日志
             parse_document('nonexistent-job-id')
 
-    @patch('app.services.document_service.IDPService')
-    @patch('app.services.document_service.SemanticSplitter')
-    @patch('app.services.document_service.VectorService')
+    @patch('app.services.document.document_service.IDPService')
+    @patch('app.services.document.document_service.SemanticSplitter')
+    @patch('app.services.document.document_service.VectorService')
     def test_parse_document_idp_failure(self, mock_vector, mock_splitter, mock_idp, app, test_document):
         """测试IDP服务失败时的处理"""
         with app.app_context():

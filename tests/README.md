@@ -1,6 +1,4 @@
-# IP智慧解答专家系统 - 测试套件
-
-本目录包含项目的所有测试用例，按照模块和测试类型进行组织。
+# IP智慧解答专家系统 - 测试
 
 ## 📁 目录结构
 
@@ -20,14 +18,17 @@ tests/
 │   ├── test_vector_service.py   # 向量服务测试
 │   ├── test_hybrid_retrieval.py # 混合检索测试
 │   ├── test_hybrid_retrieval_core.py # 混合检索核心测试
-│   └── test_knowledge.py       # 知识库服务测试
+│   ├── test_knowledge.py       # 知识库服务测试
+│   ├── test_langgraph_agent.py # LangGraph Agent基础测试
+│   └── test_langgraph_integration.py # LangGraph Agent集成测试
 ├── models/           # 模型层测试
 │   └── test_models.py          # 数据模型测试
 ├── integration/      # 集成测试
 │   ├── test_config.py          # 配置集成测试
 │   ├── test_database.py        # 数据库集成测试
 │   ├── test_vector_setup.py    # 向量数据库设置测试
-│   └── test_weaviate.py        # Weaviate集成测试
+│   ├── test_weaviate.py        # Weaviate集成测试
+│   └── test_langgraph_e2e.py   # LangGraph Agent端到端测试
 ├── unit/             # 单元测试
 │   ├── test_config.py          # 配置单元测试
 │   └── __init__.py
@@ -76,12 +77,16 @@ pytest tests/integration/            # 集成测试
 
 # 运行特定测试文件
 pytest tests/services/test_hybrid_retrieval_core.py
+pytest tests/services/test_langgraph_agent.py        # LangGraph Agent基础测试
+pytest tests/services/test_langgraph_integration.py  # LangGraph Agent集成测试
+pytest tests/integration/test_langgraph_e2e.py       # LangGraph Agent端到端测试
 
 # 运行带标记的测试
 pytest -m "unit"                     # 单元测试
 pytest -m "integration"              # 集成测试
 pytest -m "api"                      # API测试
 pytest -m "hybrid_retrieval"         # 混合检索测试
+pytest -m "langgraph"                # LangGraph Agent测试
 
 # 生成覆盖率报告
 pytest --cov=app --cov-report=html --cov-report=term-missing
@@ -104,6 +109,7 @@ pytest -n auto
 - `@pytest.mark.vector` - 向量服务测试
 - `@pytest.mark.knowledge` - 知识库测试
 - `@pytest.mark.hybrid_retrieval` - 混合检索测试
+- `@pytest.mark.langgraph` - LangGraph Agent测试
 
 ## 📋 测试类型说明
 
@@ -120,6 +126,8 @@ pytest -n auto
 - 外部服务集成
 - 数据处理算法
 - 混合检索算法
+- LangGraph Agent工作流
+- 智能对话状态管理
 
 ### 模型层测试 (`tests/models/`)
 测试数据模型和数据库操作，包括：
@@ -141,6 +149,26 @@ pytest -n auto
 - 边界条件
 - 异常处理
 - 配置逻辑
+
+## 🤖 LangGraph Agent测试
+
+### `test_langgraph_agent.py` - 基础组件测试
+- **依赖检查**：验证 langgraph 和 langchain_openai 模块导入
+- **状态定义**：测试 AgentState TypedDict 的创建和字段验证
+- **节点函数**：验证所有节点函数的签名和返回类型
+- **工作流创建**：测试主工作流和响应处理工作流的编译
+
+### `test_langgraph_integration.py` - 集成功能测试
+- **服务集成**：测试异步任务提交和队列集成
+- **状态转换**：验证工作流中的条件判断逻辑
+- **错误处理**：测试错误状态的处理和恢复
+- **工作流执行**：端到端的工作流编译和状态管理
+
+### `test_langgraph_e2e.py` - 端到端集成测试
+- **完整流程**：测试从案例创建到任务完成的完整流程
+- **数据库集成**：验证与数据库的完整交互
+- **独立运行**：支持作为独立脚本运行，便于开发调试
+- **真实环境测试**：包含需要真实Redis和数据库环境的测试选项
 
 ## 🔧 配置文件
 

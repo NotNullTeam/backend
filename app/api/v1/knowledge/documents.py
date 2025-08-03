@@ -26,6 +26,7 @@ def allowed_file(filename):
 
 
 @bp.route('/documents', methods=['POST'])
+@bp.route('/upload', methods=['POST'])  # 别名路由
 @jwt_required()
 def upload_document():
     """
@@ -66,7 +67,7 @@ def upload_document():
                 'code': 400,
                 'status': 'error',
                 'error': {
-                    'type': 'INVALID_REQUEST',
+                    'type': 'UNSUPPORTED_FILE_TYPE',
                     'message': f'不支持的文件类型，支持的类型: {", ".join(ALLOWED_EXTENSIONS)}'
                 }
             }), 400
@@ -186,7 +187,7 @@ def get_documents():
             'code': 200,
             'status': 'success',
             'data': {
-                'items': [{
+                'documents': [{
                     'docId': doc.id,
                     'fileName': doc.original_filename,
                     'vendor': doc.vendor,
@@ -197,9 +198,12 @@ def get_documents():
                     'uploadedAt': doc.uploaded_at.isoformat() + 'Z' if doc.uploaded_at else None,
                     'processedAt': doc.processed_at.isoformat() + 'Z' if doc.processed_at else None
                 } for doc in documents],
-                'total': pagination.total,
-                'page': page,
-                'pageSize': page_size
+                'pagination': {
+                    'total': pagination.total,
+                    'page': page,
+                    'per_page': page_size,
+                    'pages': pagination.pages
+                }
             }
         })
 
@@ -224,7 +228,7 @@ def get_documents():
         }), 500
 
 
-@bp.route('/knowledge/documents/<doc_id>', methods=['GET'])
+@bp.route('/documents/<doc_id>', methods=['GET'])
 @jwt_required()
 def get_document_detail(doc_id):
     """
@@ -294,7 +298,7 @@ def get_document_detail(doc_id):
         }), 500
 
 
-@bp.route('/knowledge/documents/<doc_id>', methods=['DELETE'])
+@bp.route('/documents/<doc_id>', methods=['DELETE'])
 @jwt_required()
 def delete_document(doc_id):
     """
@@ -355,7 +359,7 @@ def delete_document(doc_id):
         }), 500
 
 
-@bp.route('/knowledge/documents/<doc_id>/reparse', methods=['PUT'])
+@bp.route('/documents/<doc_id>/reparse', methods=['PUT'])
 @jwt_required()
 def reparse_document(doc_id):
     """
@@ -429,7 +433,7 @@ def reparse_document(doc_id):
         }), 500
 
 
-@bp.route('/knowledge/documents/<doc_id>', methods=['PATCH'])
+@bp.route('/documents/<doc_id>', methods=['PATCH'])
 @jwt_required()
 def update_document_metadata(doc_id):
     """

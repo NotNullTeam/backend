@@ -101,7 +101,7 @@ class TestHybridRetrieval:
         score = self.retrieval._calculate_quality_score(result)
         assert score > 1.0  # 应该有加分
 
-    @patch('app.services.hybrid_retrieval.get_vector_service')
+    @patch('app.services.retrieval.hybrid_retrieval.get_vector_service')
     def test_vector_search(self, mock_get_vector_service):
         """测试向量检索"""
         # Mock向量服务
@@ -163,7 +163,7 @@ class TestHybridRetrieval:
 class TestSearchKnowledge:
     """知识检索函数测试"""
 
-    @patch('app.services.hybrid_retrieval.HybridRetrieval')
+    @patch('app.services.retrieval.hybrid_retrieval.HybridRetrieval')
     def test_search_knowledge(self, mock_hybrid_retrieval_class):
         """测试便捷检索函数"""
         # Mock检索结果
@@ -196,7 +196,7 @@ class TestSearchSuggestions:
 
     def test_generate_search_suggestions_ospf(self):
         """测试OSPF相关建议"""
-        from app.api.search import _generate_search_suggestions
+        from app.api.v1.knowledge.search import _generate_search_suggestions
 
         suggestions = _generate_search_suggestions("OSPF", 5)
 
@@ -205,7 +205,7 @@ class TestSearchSuggestions:
 
     def test_generate_search_suggestions_generic(self):
         """测试通用建议"""
-        from app.api.search import _generate_search_suggestions
+        from app.api.v1.knowledge.search import _generate_search_suggestions
 
         suggestions = _generate_search_suggestions("未知技术", 5)
 

@@ -7,8 +7,8 @@
 from flask import Blueprint, request, jsonify, current_app
 from flask_jwt_extended import jwt_required, get_jwt_identity
 from app.api.v1.development import dev_bp as bp
-from app.services.llm_service import LLMService
-from app.services.cache_service import get_cache_service
+from app.services.ai.llm_service import LLMService
+from app.services.storage.cache_service import get_cache_service
 from app.utils.monitoring import get_monitor
 import logging
 

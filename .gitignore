@@ -2,20 +2,81 @@
 .venv
 venv
 
+# Python 缓存文件
+__pycache__/
+*.py[cod]
+*$py.class
+*.so
+.Python
+
+# Python 包构建
+build/
+develop-eggs/
+dist/
+downloads/
+eggs/
+.eggs/
+lib/
+lib64/
+parts/
+sdist/
+var/
+wheels/
+*.egg-info/
+.installed.cfg
+*.egg
+MANIFEST
+
+# IDE 和编辑器
+.idea/
+*.swp
+*.swo
+*~
+*.sublime-*
+.spyderproject
+.spyproject
+
+# 保留项目特定的 VSCode 配置
+.vscode/*
+!.vscode/settings.json
+!.vscode/pyrightconfig.json
+!.vscode/launch.json
+!.vscode/tasks.json
+!.vscode/extensions.json
+
 # 系统文件
 .DS_Store
+.DS_Store?
+._*
+.Spotlight-V100
+.Trashes
+ehthumbs.db
+Thumbs.db
 
 # 文档目录
 docs/
 
 # 环境变量
 .env
+.env.local
+.env.development.local
+.env.test.local
+.env.production.local
 
 # 测试覆盖率文件
 .coverage
 .coverage.*
 htmlcov/
 .pytest_cache/
+.tox/
+.nox/
+coverage.xml
+*.cover
+.hypothesis/
+
+# 性能分析
+.prof
+.profile
 
 # 日志文件
 logs/
@@ -24,7 +85,24 @@ logs/
 # 数据库文件
 *.db
 *.sqlite
+*.sqlite3
 instance/
 
 # 上传文件
 uploads/
+
+# 临时文件
+*.tmp
+*.bak
+*.pid
+
+# 安全文件
+*.key
+*.pem
+*.crt
+*.cert
+secrets.json
+
+# 测试结果
+test-results/
+.pytest_cache/

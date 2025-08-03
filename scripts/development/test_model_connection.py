@@ -29,7 +29,7 @@ def test_model_connection():
 
     if not api_key:
         print("   ❌ 错误: 未设置DASHSCOPE_API_KEY")
-        return False
+        assert False, "DASHSCOPE_API_KEY 环境变量未设置"
 
     # 测试直接连接
     print("\n2. 测试直接模型连接:")
@@ -52,7 +52,7 @@ def test_model_connection():
 
     except Exception as e:
         print(f"   ❌ 模型连接失败: {str(e)}")
-        return False
+        assert False, f"模型连接失败: {str(e)}"
 
     # 测试LLM服务
     print("\n3. 测试LLM服务:")
@@ -73,7 +73,7 @@ def test_model_connection():
 
     except Exception as e:
         print(f"   ❌ LLM服务测试失败: {str(e)}")
-        return False
+        assert False, f"LLM服务测试失败: {str(e)}"
 
     print("\n4. 模型信息总结:")
     print(f"   ✅ 使用的是真实的阿里云通义千问大模型")
@@ -82,7 +82,8 @@ def test_model_connection():
     print(f"   ✅ 连接方式: OpenAI兼容接口")
     print(f"   ✅ 所有测试通过")
 
-    return True
+    # 测试函数应该使用assert而不是return
+    assert True  # 所有测试通过
 
 def test_api_quota():
     """测试API配额"""

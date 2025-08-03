@@ -20,8 +20,8 @@ class TestHybridRetrievalCore:
     def setup_method(self):
         """测试设置"""
         # Mock外部依赖
-        with patch('app.services.hybrid_retrieval.get_vector_service'), \
-             patch('app.services.hybrid_retrieval.get_embedding_service'):
+        with patch('app.services.retrieval.hybrid_retrieval.get_vector_service'), \
+             patch('app.services.retrieval.hybrid_retrieval.get_embedding_service'):
             from app.services.retrieval.hybrid_retrieval import HybridRetrieval
             self.retrieval = HybridRetrieval(
                 vector_weight=0.7,

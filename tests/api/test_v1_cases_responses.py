@@ -49,7 +49,7 @@ class TestCasesAPIResponses:
         assert data['code'] == 200
         assert data['status'] == 'success'
         assert 'data' in data
-        assert 'cases' in data['data']
+        assert 'items' in data['data']
         assert 'pagination' in data['data']
 
         # 检查分页信息
@@ -211,7 +211,7 @@ class TestCasesAPIResponses:
             assert data['code'] == 200
             assert data['status'] == 'success'
             assert 'data' in data
-            assert 'cases' in data['data']
+            assert 'items' in data['data']
             assert 'query' in data['data']
             assert 'total' in data['data']
 
@@ -280,7 +280,10 @@ class TestCasesAPIResponses:
         # 提供过长的标题
         long_title = 'x' * 1000
         response = client.post('/api/v1/cases/',
-                              json={'title': long_title},
+                              json={
+                                  'query': '测试查询问题',
+                                  'title': long_title
+                              },
                               headers=auth_headers)
 
         if response.status_code == 400:

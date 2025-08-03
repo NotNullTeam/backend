@@ -21,9 +21,10 @@ IP智慧解答专家系统 - 任务监控API
 from flask import Blueprint, request, jsonify
 from flask_jwt_extended import jwt_required, get_jwt_identity
 from app.api.v1.system import system_bp as bp
-from app.services.task_monitor import TaskMonitor
-from app.services.document_service import get_parsing_status
-from app.services.agent_service import get_agent_task_status
+from app.services.infrastructure.task_monitor import TaskMonitor
+from app.services.document.document_service import get_parsing_status
+from app.services.ai.agent_service import get_agent_task_status
+from app.services.ai import get_langgraph_task_status
 from app import db
 from app.models.knowledge import ParsingJob
 from datetime import datetime, timedelta
@@ -53,12 +54,44 @@ def get_queue_stats():
 def get_task_status(job_id):
     """获取特定任务的状态"""
     try:
-        status = TaskMonitor.get_task_status(job_id)
+        # 首先尝试获取langgraph任务状态
+        langgraph_status = get_langgraph_task_status(job_id)
+        if langgraph_status.get('status') != 'not_found':
+            return jsonify({
+                'success': True,
+                'data': langgraph_status
+            })
 
+        # 如果不是langgraph任务，尝试传统任务监控
+        status = TaskMonitor.get_task_status(job_id)
         if not status:
             return jsonify({
                 'success': False,
                 'error': '任务不存在'
+            }), 404
+
+        return jsonify({
+            'success': True,
+            'data': status
+        })
+    except Exception as e:
+        return jsonify({
+            'success': False,
+            'error': str(e)
+        }), 500
+
+
+@bp.route('/langgraph/task/<job_id>/status', methods=['GET'])
+@jwt_required()
+def get_langgraph_task_status_api(job_id):
+    """获取langgraph任务的详细状态"""
+    try:
+        status = get_langgraph_task_status(job_id)
+
+        if status.get('status') == 'not_found':
+            return jsonify({
+                'success': False,
+                'error': 'langgraph任务不存在'
             }), 404
 
         return jsonify({
@@ -190,9 +223,9 @@ def cleanup_failed_jobs():
         }), 500
 
 
-@bp.route('/health', methods=['GET'])
+@bp.route('/tasks/health', methods=['GET'])
 @jwt_required()
-def health_check():
+def task_health_check():
     """异步任务系统健康检查"""
     try:
         stats = TaskMonitor.get_queue_stats()
@@ -253,7 +286,7 @@ def health_check():
         }), 500
 
 
-@bp.route('/metrics', methods=['GET'])
+@bp.route('/task-metrics', methods=['GET'])
 @jwt_required()
 def get_metrics():
     """获取任务系统指标"""

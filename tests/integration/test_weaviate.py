@@ -31,7 +31,7 @@ def test_weaviate_vector_db():
                 print("✅ 嵌入服务连接正常")
             else:
                 print("❌ 嵌入服务连接失败")
-                return False
+                assert False, "测试失败"
         else:
             print("⚠️  嵌入服务没有 test_connection 方法")
 
@@ -46,7 +46,7 @@ def test_weaviate_vector_db():
             print("✅ Weaviate 连接正常")
         else:
             print("❌ Weaviate 连接失败")
-            return False
+            assert False, "测试失败"
 
         # 4. 测试数据库统计信息
         print("\n4. 获取数据库统计信息...")
@@ -83,7 +83,7 @@ def test_weaviate_vector_db():
             print("✅ 文档存储成功")
         else:
             print("❌ 文档存储失败")
-            return False
+            assert False, "测试失败"
 
         # 7. 测试向量搜索
         print("\n7. 测试向量搜索...")
@@ -108,13 +108,13 @@ def test_weaviate_vector_db():
         print("✅ 所有测试通过！Weaviate 向量数据库工作正常")
         print("=" * 50)
 
-        return True
+        assert True  # 测试通过
 
     except Exception as e:
         print(f"\n❌ 测试失败: {e}")
         import traceback
         traceback.print_exc()
-        return False
+        assert False, "测试失败"
 
 if __name__ == "__main__":
     test_weaviate_vector_db()

@@ -49,6 +49,13 @@ def create_app(config_class=Config):
         app.logger.warning(f"Redis连接失败: {e}")
         redis_client = None
 
+    # 预加载jieba以避免资源警告
+    try:
+        import jieba
+        jieba.initialize()  # 预先初始化jieba
+    except Exception as e:
+        app.logger.warning(f"jieba初始化失败: {e}")
+
     # 注册蓝图
     from app.api.v1 import v1_bp
     app.register_blueprint(v1_bp)
@@ -105,8 +112,8 @@ def register_cli_commands(app):
     @app.cli.command()
     def test_vector():
         """测试向量数据库连接"""
-        from app.services.vector_service import get_vector_service
-        from app.services.vector_db_config import vector_db_config
+        from app.services.retrieval.vector_service import get_vector_service
+        from app.services.storage.vector_db_config import vector_db_config
 
         print(f"向量数据库类型: {vector_db_config.db_type.value}")
         print(f"配置是否有效: {vector_db_config.is_valid()}")
@@ -139,7 +146,7 @@ def register_cli_commands(app):
     @app.cli.command()
     def vector_stats():
         """显示向量数据库统计信息"""
-        from app.services.vector_service import get_vector_service
+        from app.services.retrieval.vector_service import get_vector_service
 
         try:
             vector_service = get_vector_service()
@@ -161,7 +168,7 @@ def register_cli_commands(app):
     @app.cli.command()
     def clear_vectors():
         """清空所有向量数据"""
-        from app.services.vector_service import get_vector_service
+        from app.services.retrieval.vector_service import get_vector_service
 
         import click
         if click.confirm('确定要清空所有向量数据吗？此操作不可逆！'):

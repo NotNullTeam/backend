@@ -4,8 +4,8 @@
 """
 from flask import Blueprint, jsonify, request
 from app.api.v1.development import dev_bp as bp
-from app.services.vector_service import get_vector_service
-from app.services.vector_db_config import vector_db_config
+from app.services.retrieval.vector_service import get_vector_service
+from app.services.storage.vector_db_config import vector_db_config
 import logging
 
 logger = logging.getLogger(__name__)

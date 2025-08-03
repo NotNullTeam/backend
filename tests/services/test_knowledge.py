@@ -71,8 +71,8 @@ class TestKnowledgeAPI:
         assert response.status_code == 200
         data = response.get_json()
         assert data['status'] == 'success'
-        assert 'items' in data['data']
-        assert data['data']['total'] >= 1
+        assert 'documents' in data['data']
+        assert data['data']['pagination']['total'] >= 1
 
     def test_get_documents_with_filters(self, client, auth_headers, test_document):
         """测试使用过滤器获取文档"""
@@ -90,8 +90,8 @@ class TestKnowledgeAPI:
 
         assert response.status_code == 200
         data = response.get_json()
-        assert data['data']['page'] == 1
-        assert data['data']['pageSize'] == 5
+        assert data['data']['pagination']['page'] == 1
+        assert data['data']['pagination']['per_page'] == 5
 
     def test_get_document_detail(self, client, auth_headers, test_document):
         """测试获取文档详情"""

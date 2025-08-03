@@ -52,13 +52,15 @@ class TestErrorHandlers:
         assert '请求的资源不存在' in data['error']['message']
 
     def test_422_unprocessable_entity_handler(self, client):
-        """测试422错误处理器"""
+        """测试JWT错误处理器"""
         # 使用无效的JWT令牌
         headers = {'Authorization': 'Bearer invalid_token'}
         response = client.get('/api/v1/auth/me', headers=headers)
 
-        assert response.status_code == 422
-        # JWT错误通常返回422
+        assert response.status_code == 401  # JWT错误返回401
+        data = response.get_json()
+        assert data['status'] == 'error'
+        assert data['error']['type'] == 'UNAUTHORIZED'
 
     def test_500_internal_error_handler(self, client, database, monkeypatch):
         """测试500错误处理器"""

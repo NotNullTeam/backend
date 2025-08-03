@@ -15,7 +15,7 @@ from app.services import get_task_queue
 from app.services.infrastructure.task_monitor import with_monitoring_and_retry
 from app.services.retrieval.hybrid_retrieval import get_hybrid_retrieval, search_knowledge
 from app.services.ai.llm_service import LLMService
-from app.services.storage.cache_service import get_cache_service
+from app.services.storage.cache_service import get_cache_service, cached_retrieval_call, cached_llm_call
 from app.utils.monitoring import monitor_performance
 
 logger = logging.getLogger(__name__)
@@ -26,6 +26,8 @@ class RetrievalService:
     def __init__(self):
         self.hybrid_retrieval = get_hybrid_retrieval()
 
+    @monitor_performance("retrieval_search", slow_threshold=1.0)
+    @cached_retrieval_call("retrieval_search", expire_time=1800)
     def search(self, query: str, filters: Optional[Dict[str, Any]] = None) -> List[Dict[str, Any]]:
         """执行混合检索"""
         try:
@@ -60,12 +62,12 @@ def analyze_user_query(case_id: str, node_id: str, query: str):
                 job.save_meta()
 
             # 获取节点
-            node = Node.query.get(node_id)
+            node = db.session.get(Node, node_id)
             if not node:
                 raise Exception(f"节点 {node_id} 不存在")
 
             # 获取案例
-            case = Case.query.get(case_id)
+            case = db.session.get(Case, case_id)
             if not case:
                 raise Exception(f"案例 {case_id} 不存在")
 
@@ -181,7 +183,7 @@ def analyze_user_query(case_id: str, node_id: str, query: str):
 
             # 更新节点状态为错误
             try:
-                node = Node.query.get(node_id)
+                node = db.session.get(Node, node_id)
                 if node:
                     node.status = 'COMPLETED'
                     node.content = {
@@ -225,12 +227,12 @@ def process_user_response(case_id: str, node_id: str, response_data: Dict[str, A
                 job.save_meta()
 
             # 获取节点
-            node = Node.query.get(node_id)
+            node = db.session.get(Node, node_id)
             if not node:
                 raise Exception(f"节点 {node_id} 不存在")
 
             # 获取案例
-            case = Case.query.get(case_id)
+            case = db.session.get(Case, case_id)
             if not case:
                 raise Exception(f"案例 {case_id} 不存在")
 
@@ -293,7 +295,7 @@ def process_user_response(case_id: str, node_id: str, response_data: Dict[str, A
 
             # 更新节点状态为错误
             try:
-                node = Node.query.get(node_id)
+                node = db.session.get(Node, node_id)
                 if node:
                     node.status = 'COMPLETED'
                     node.content = {

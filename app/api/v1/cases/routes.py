@@ -83,9 +83,12 @@ def get_cases():
             'status': 'success',
             'data': {
                 'items': [case.to_dict() for case in cases],
-                'total': pagination.total,
-                'page': page,
-                'pageSize': page_size
+                'pagination': {
+                    'total': pagination.total,
+                    'page': page,
+                    'per_page': page_size,
+                    'pages': pagination.pages
+                }
             }
         })
 
@@ -119,6 +122,8 @@ def create_case():
     请求体参数:
     - query: 用户问题描述 (必需)
     - attachments: 附件列表 (可选)
+    - useLanggraph: 是否使用langgraph Agent (可选，默认false)
+    - vendor: 设备厂商 (可选)
     """
     try:
         user_id = get_jwt_identity()
@@ -135,7 +140,10 @@ def create_case():
             }), 400
 
         query = data.get('query')
+        title = data.get('title')  # 支持直接设置标题
         attachments = data.get('attachments', [])
+        use_langgraph = data.get('useLanggraph', False)
+        vendor = data.get('vendor')
 
         if not query or not query.strip():
             return jsonify({
@@ -147,10 +155,33 @@ def create_case():
                 }
             }), 400
 
+        # 验证标题长度
+        if title and len(title) > 200:
+            return jsonify({
+                'code': 400,
+                'status': 'error',
+                'error': {
+                    'type': 'VALIDATION_ERROR',
+                    'message': '标题长度不能超过200个字符',
+                    'details': {
+                        'field': 'title',
+                        'max_length': 200,
+                        'current_length': len(title)
+                    }
+                }
+            }), 400
+
         # 创建案例
+        case_title = title if title else (query[:100] + '...' if len(query) > 100 else query)
         case = Case(
-            title=query[:100] + '...' if len(query) > 100 else query,
-            user_id=user_id
+            title=case_title,
+            user_id=user_id,
+            metadata={
+                'vendor': vendor,
+                'use_langgraph': use_langgraph,
+                'original_query': query,
+                'created_with_langgraph': use_langgraph
+            }
         )
         db.session.add(case)
         db.session.flush()  # 获取case.id
@@ -197,13 +228,19 @@ def create_case():
 
         # 触发异步AI分析任务
         try:
-            from app.services.agent_service import analyze_user_query
-            from app.services import get_task_queue
+            if use_langgraph:
+                # 使用langgraph Agent服务
+                from app.services.ai import submit_langgraph_query_analysis_task
+                job_id = submit_langgraph_query_analysis_task(case.id, ai_node.id, query)
+                current_app.logger.info(f"langgraph异步AI分析任务已提交: job_id={job_id}, case_id={case.id}")
+            else:
+                # 使用传统Agent服务
+                from app.services.ai.agent_service import analyze_user_query
+                from app.services import get_task_queue
 
-            queue = get_task_queue()
-            job = queue.enqueue(analyze_user_query, case.id, ai_node.id, query)
-
-            current_app.logger.info(f"异步AI分析任务已提交: job_id={job.id}, case_id={case.id}")
+                queue = get_task_queue()
+                job = queue.enqueue(analyze_user_query, case.id, ai_node.id, query)
+                current_app.logger.info(f"传统异步AI分析任务已提交: job_id={job.id}, case_id={case.id}")
         except Exception as e:
             current_app.logger.error(f"提交异步任务失败: {str(e)}")
             # 不影响API响应，任务失败时节点状态会保持PROCESSING
@@ -215,6 +252,8 @@ def create_case():
                 'caseId': case.id,
                 'title': case.title,
                 'status': case.status,
+                'useLanggraph': use_langgraph,
+                'vendor': vendor,
                 'nodes': [user_node.to_dict(), ai_node.to_dict()],
                 'edges': [edge.to_dict()],
                 'createdAt': case.created_at.isoformat() + 'Z',
@@ -268,13 +307,16 @@ def get_case_detail(case_id):
             'code': 200,
             'status': 'success',
             'data': {
-                'caseId': case.id,
-                'title': case.title,
-                'status': case.status,
+                'case': {
+                    'id': case.id,
+                    'title': case.title,
+                    'status': case.status,
+                    'user_id': case.user_id,
+                    'created_at': case.created_at.isoformat() + 'Z',
+                    'updated_at': case.updated_at.isoformat() + 'Z'
+                },
                 'nodes': [node.to_dict() for node in nodes],
-                'edges': [edge.to_dict() for edge in edges],
-                'createdAt': case.created_at.isoformat() + 'Z',
-                'updatedAt': case.updated_at.isoformat() + 'Z'
+                'edges': [edge.to_dict() for edge in edges]
             }
         })
 
@@ -348,7 +390,9 @@ def update_case(case_id):
         return jsonify({
             'code': 200,
             'status': 'success',
-            'data': case.to_dict()
+            'data': {
+                'case': case.to_dict()
+            }
         })
 
     except Exception as e:
@@ -523,20 +567,35 @@ def handle_interaction(case_id):
 
         # 触发异步处理
         try:
-            from app.services.agent_service import process_user_response
-            from app.services import get_task_queue
+            # 检查案例是否使用langgraph
+            use_langgraph = case.metadata.get('use_langgraph', False) if case.metadata else False
 
-            queue = get_task_queue()
-            job = queue.enqueue(
-                process_user_response,
-                case_id,
-                ai_processing_node.id,
-                response_data,
-                retrieval_weight,
-                filter_tags
-            )
+            if use_langgraph:
+                # 使用langgraph响应处理服务
+                from app.services.ai import submit_langgraph_response_processing_task
+                job_id = submit_langgraph_response_processing_task(
+                    case_id,
+                    ai_processing_node.id,
+                    response_data,
+                    retrieval_weight,
+                    filter_tags
+                )
+                current_app.logger.info(f"langgraph异步响应处理任务已提交: job_id={job_id}, case_id={case_id}")
+            else:
+                # 使用传统响应处理服务
+                from app.services.ai.agent_service import process_user_response
+                from app.services import get_task_queue
 
-            current_app.logger.info(f"异步响应处理任务已提交: job_id={job.id}, case_id={case_id}")
+                queue = get_task_queue()
+                job = queue.enqueue(
+                    process_user_response,
+                    case_id,
+                    ai_processing_node.id,
+                    response_data,
+                    retrieval_weight,
+                    filter_tags
+                )
+                current_app.logger.info(f"传统异步响应处理任务已提交: job_id={job.id}, case_id={case_id}")
         except Exception as e:
             current_app.logger.error(f"提交异步任务失败: {str(e)}")
             # 不影响API响应，任务失败时节点状态会保持PROCESSING

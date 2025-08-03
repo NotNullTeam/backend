@@ -7,15 +7,23 @@
 - 数据库配置：向量数据库配置管理
 """
 
-from .cache_service import CacheService, get_cache_service, cached_llm_result
+from .cache_service import (
+    CacheService,
+    cache_service,
+    get_cache_service,
+    cached_llm_call,
+    cached_retrieval_call
+)
 from .weaviate_vector_db import WeaviateVectorDB
 from .local_vector_db import LocalFileVectorDB
 from .vector_db_config import vector_db_config, VectorDBType
 
 __all__ = [
     'CacheService',
+    'cache_service',
     'get_cache_service',
-    'cached_llm_result',
+    'cached_llm_call',
+    'cached_retrieval_call',
     'WeaviateVectorDB',
     'LocalFileVectorDB',
     'vector_db_config',

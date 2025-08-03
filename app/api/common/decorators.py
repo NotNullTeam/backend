@@ -7,6 +7,7 @@ API装饰器
 from functools import wraps
 from flask import jsonify, current_app
 from flask_jwt_extended import verify_jwt_in_request, get_jwt_identity
+from app import db
 import logging
 
 logger = logging.getLogger(__name__)
@@ -42,7 +43,7 @@ def admin_required(func):
 
         # 这里需要根据实际的用户模型来检查权限
         from app.models.user import User
-        user = User.query.get(user_id)
+        user = db.session.get(User, user_id)
 
         if not user or not user.has_role('admin'):
             return jsonify({

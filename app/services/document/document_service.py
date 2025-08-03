@@ -15,6 +15,8 @@ from app.services.document.idp_service import IDPService
 from app.services.document.semantic_splitter import SemanticSplitter
 from app.services.retrieval.vector_service import VectorService
 from app.services.infrastructure.task_monitor import with_monitoring_and_retry
+from app.services.storage.cache_service import cached_retrieval_call
+from app.utils.monitoring import monitor_performance
 
 logger = logging.getLogger(__name__)
 
@@ -29,12 +31,12 @@ def parse_document(job_id: str):
     """
     app = create_app()
     with app.app_context():
-        job = ParsingJob.query.get(job_id)
+        job = db.session.get(ParsingJob, job_id)
         if not job:
             logger.error(f"解析任务未找到: {job_id}")
             return
 
-        document = KnowledgeDocument.query.get(job.document_id)
+        document = db.session.get(KnowledgeDocument, job.document_id)
         if not document:
             logger.error(f"知识文档未找到: {job.document_id}")
             return

@@ -73,7 +73,7 @@ class TestAppFactory:
 
         assert app is not None
         assert app.config['TESTING'] is False
-        assert 'api' in [bp.name for bp in app.blueprints.values()]
+        assert 'api_v1' in [bp.name for bp in app.blueprints.values()]
 
     def test_create_app_custom_config(self):
         """测试使用自定义配置创建应用"""
@@ -103,12 +103,12 @@ class TestAppFactory:
         app = create_app(TestingConfig)
 
         # 检查API蓝图是否注册
-        assert 'api' in [bp.name for bp in app.blueprints.values()]
+        assert 'api_v1' in [bp.name for bp in app.blueprints.values()]
 
         # 检查URL前缀
         api_blueprint = None
         for bp in app.blueprints.values():
-            if bp.name == 'api':
+            if bp.name == 'api_v1':
                 api_blueprint = bp
                 break
 

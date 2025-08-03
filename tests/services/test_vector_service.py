@@ -32,7 +32,7 @@ class TestVectorServiceIntegration:
         assert hasattr(vector_service, 'embedding_service')
         assert hasattr(vector_service, 'vector_db')
 
-    @patch('app.services.embedding_service.DashScopeEmbeddings')
+    @patch('app.services.ai.embedding_service.DashScopeEmbeddings')
     def test_embedding_service_initialization(self, mock_dashscope):
         """测试嵌入服务初始化"""
         # 模拟DashScopeEmbeddings
@@ -46,7 +46,7 @@ class TestVectorServiceIntegration:
         assert embedding_service.api_key == 'test-key'
         assert embedding_service.embeddings == mock_embeddings
 
-    @patch('app.services.embedding_service.DashScopeEmbeddings')
+    @patch('app.services.ai.embedding_service.DashScopeEmbeddings')
     def test_embed_text_success(self, mock_dashscope):
         """测试文本向量化成功"""
         # 模拟返回值
@@ -61,7 +61,7 @@ class TestVectorServiceIntegration:
         assert result == [0.1, 0.2, 0.3]
         mock_embeddings.embed_query.assert_called_once_with("测试文本")
 
-    @patch('app.services.embedding_service.DashScopeEmbeddings')
+    @patch('app.services.ai.embedding_service.DashScopeEmbeddings')
     def test_embed_batch_success(self, mock_dashscope):
         """测试批量文本向量化成功"""
         # 模拟返回值
@@ -173,7 +173,10 @@ class TestWeaviateConnection:
         # 可以通过 pytest -m integration 来运行
         try:
             import weaviate
-            client = weaviate.Client("http://localhost:8080")
+            from weaviate.client import WeaviateClient
+
+            # 使用新的 v4 API
+            client = WeaviateClient.connect_to_local()
 
             # 测试连接
             meta = client.get_meta()
