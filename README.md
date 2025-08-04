@@ -152,6 +152,7 @@ backend/
 │   ├── api/                # API蓝图
 │   │   ├── auth.py         # 认证API
 │   │   ├── cases.py        # 案例管理API
+│   │   ├── analysis.py     # 诊断分析API
 │   │   ├── knowledge.py    # 知识库API
 │   │   ├── statistics.py   # 统计API
 │   │   └── __init__.py
@@ -161,12 +162,23 @@ backend/
 │   │   ├── knowledge.py    # 知识文档模型
 │   │   ├── feedback.py     # 反馈模型
 │   │   └── __init__.py
-│   ├── services/           # 业务服务
-│   │   ├── agent_service.py    # Agent服务
-│   │   ├── retrieval_service.py # 检索服务
-│   │   ├── vector_service.py    # 向量服务
-│   │   └── idp_service.py      # 文档解析服务
+│   ├── services/           # 业务服务（分模块组织）
+│   │   ├── ai/             # AI相关服务
+│   │   │   ├── agent_service.py      # Agent服务
+│   │   │   ├── llm_service.py        # 大语言模型服务
+│   │   │   ├── embedding_service.py  # 文本嵌入服务
+│   │   │   └── log_parsing_service.py # 日志解析服务
+│   │   ├── retrieval/      # 检索服务
+│   │   │   ├── vector_service.py     # 向量服务
+│   │   │   ├── hybrid_retrieval.py  # 混合检索
+│   │   │   └── knowledge_service.py  # 知识检索服务
+│   │   ├── network/        # 网络设备服务
+│   │   │   └── vendor_command_service.py # 厂商命令生成
+│   │   ├── document/       # 文档处理服务
+│   │   │   └── idp_service.py        # 文档解析服务
+│   │   └── storage/        # 存储服务
 │   ├── utils/              # 工具模块
+│   │   └── response_helper.py  # 统一响应格式
 │   ├── errors.py           # 错误处理
 │   └── logging_config.py   # 日志配置
 ├── scripts/                # 管理脚本
@@ -186,14 +198,105 @@ backend/
 └── .env.example          # 环境变量示例
 ```
 
-## 💡 核心功能
+## � API 响应格式
+
+### 统一响应格式
+
+系统使用统一的JSON响应格式，所有API接口都遵循以下结构：
+
+#### 成功响应
+```json
+{
+  "success": true,
+  "data": {
+    // 具体的数据内容
+  },
+  "message": "操作成功"
+}
+```
+
+#### 错误响应
+```json
+{
+  "success": false,
+  "error": {
+    "code": "ERROR_CODE",
+    "message": "错误描述",
+    "details": {
+      // 详细错误信息（可选）
+    }
+  }
+}
+```
+
+#### 分页响应
+```json
+{
+  "success": true,
+  "data": {
+    "items": [
+      // 数据项列表
+    ],
+    "pagination": {
+      "page": 1,
+      "per_page": 20,
+      "total": 100,
+      "pages": 5
+    }
+  }
+}
+```
+
+#### 验证错误响应
+```json
+{
+  "success": false,
+  "error": {
+    "code": "VALIDATION_ERROR",
+    "message": "输入验证失败",
+    "details": {
+      "field_name": ["具体的验证错误信息"]
+    }
+  }
+}
+```
+
+### 常见错误代码
+- `VALIDATION_ERROR`: 输入验证失败
+- `AUTHENTICATION_ERROR`: 认证失败
+- `AUTHORIZATION_ERROR`: 权限不足
+- `NOT_FOUND`: 资源不存在
+- `CONFLICT`: 资源冲突
+- `INTERNAL_ERROR`: 服务器内部错误
+
+## �💡 核心功能
 
 ### 智能诊断流程
 1. **用户提问** → 系统分析问题类型和复杂度
 2. **知识检索** → 从向量数据库中检索相关文档
 3. **Agent追问** → 如需更多信息，主动询问用户
 4. **方案生成** → 基于检索结果生成解决方案
-5. **反馈收集** → 收集用户反馈优化系统
+5. **日志分析** → AI驱动的网络设备日志智能分析
+6. **命令生成** → 根据厂商类型生成特定配置命令
+7. **反馈收集** → 收集用户反馈优化系统
+
+### 核心服务模块
+
+#### AI服务 (`app/services/ai/`)
+- **日志解析服务**: 智能分析网络设备日志，检测异常模式
+- **LLM服务**: 处理问答、分析、生成等任务
+- **嵌入服务**: 文本向量化和相似度计算
+- **Agent服务**: 多轮对话和工作流管理
+
+#### 网络设备服务 (`app/services/network/`)
+- **厂商命令服务**: 支持华为、思科、华三、Juniper等主流厂商
+- **配置生成**: 根据问题分析自动生成设备配置命令
+- **命令模板**: 预定义的故障排查和配置模板
+
+#### 检索服务 (`app/services/retrieval/`)
+- **统一知识检索**: 整合数据库查询和向量搜索
+- **混合检索策略**: 关键词 + 向量 + 重排序
+- **相关性评分**: 智能评估检索结果相关性
 
 ### 知识库管理
 - **文档上传**：支持PDF、Word、图片等多种格式
@@ -229,6 +332,35 @@ python scripts/manage.py check
 
 # 启动开发服务器
 python run.py
+```
+
+### 服务开发示例
+
+#### 使用日志解析服务
+```python
+from app.services.ai.log_parsing_service import LogParsingService
+
+log_service = LogParsingService()
+result = log_service.parse_log("网络设备日志内容")
+# 返回结构化的分析结果，包含问题类型、严重程度、解决方案等
+```
+
+#### 使用厂商命令服务
+```python
+from app.services.network.vendor_command_service import VendorCommandService
+
+command_service = VendorCommandService()
+commands = command_service.generate_commands("华为", "OSPF邻居建立失败", "查看OSPF状态")
+# 返回特定厂商的命令列表
+```
+
+#### 使用知识检索服务
+```python
+from app.services.retrieval.knowledge_service import KnowledgeService
+
+knowledge_service = KnowledgeService()
+result = knowledge_service.retrieve_knowledge("路由协议配置", filters={"vendor": "华为"})
+# 返回相关的知识文档和相似度评分
 ```
 
 ### 数据库管理

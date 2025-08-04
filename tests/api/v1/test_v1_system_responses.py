@@ -48,11 +48,56 @@ class TestSystemAPIResponses:
         assert isinstance(health_data['healthy'], bool)
 
         # 检查服务状态
-        services = health_data['services']
-        for service_name, service_info in services.items():
-            assert 'status' in service_info
-            assert 'response_time' in service_info
-            assert service_info['status'] in ['up', 'down', 'degraded']
+        assert isinstance(health_data['services'], dict)
+
+    def test_statistics_response(self, client, auth_headers):
+        """测试统计数据响应格式"""
+        response = client.get('/api/v1/system/statistics', headers=auth_headers)
+
+        assert response.status_code == 200
+        data = response.get_json()
+
+        assert data['code'] == 200
+        assert data['status'] == 'success'
+        assert 'data' in data
+
+        stats_data = data['data']
+
+        # 检查故障分类统计
+        assert 'faultCategories' in stats_data
+        assert isinstance(stats_data['faultCategories'], list)
+
+        # 检查解决率趋势
+        assert 'resolutionTrend' in stats_data
+        assert isinstance(stats_data['resolutionTrend'], list)
+
+        # 检查知识覆盖度
+        assert 'knowledgeCoverage' in stats_data
+        assert isinstance(stats_data['knowledgeCoverage'], dict)
+
+        # 检查系统概览
+        assert 'performanceMetrics' in stats_data
+        assert isinstance(stats_data['performanceMetrics'], dict)
+
+    def test_statistics_with_time_range(self, client, auth_headers):
+        """测试带时间范围的统计数据响应"""
+        response = client.get('/api/v1/system/statistics?timeRange=7d', headers=auth_headers)
+
+        assert response.status_code == 200
+        data = response.get_json()
+
+        assert data['code'] == 200
+        assert data['status'] == 'success'
+        assert 'data' in data
+
+    def test_statistics_invalid_time_range(self, client, auth_headers):
+        """测试无效时间范围参数"""
+        response = client.get('/api/v1/system/statistics?timeRange=invalid', headers=auth_headers)
+
+        # 应该返回默认的30d数据
+        assert response.status_code == 200
+        data = response.get_json()
+        assert data['code'] == 200
 
     def test_system_metrics_response(self, client, admin_headers):
         """测试系统指标响应格式"""

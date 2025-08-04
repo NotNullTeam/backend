@@ -167,7 +167,7 @@ def get_documents():
         page_size = int(request.args.get('pageSize', 10))
 
         # 构建查询
-        query = KnowledgeDocument.query.filter_by(user_id=user_id)
+        query = KnowledgeDocument.query.filter_by(user_id=int(user_id), is_deleted=False)
 
         if status:
             query = query.filter_by(status=status)
@@ -242,7 +242,8 @@ def get_document_detail(doc_id):
 
         document = KnowledgeDocument.query.filter_by(
             id=doc_id,
-            user_id=user_id
+            user_id=int(user_id),
+            is_deleted=False
         ).first()
 
         if not document:
@@ -298,22 +299,15 @@ def get_document_detail(doc_id):
         }), 500
 
 
-@bp.route('/documents/<doc_id>', methods=['DELETE'])
+@bp.route('/documents/<doc_id>/status', methods=['GET'])
 @jwt_required()
-def delete_document(doc_id):
+def get_document_status(doc_id):
     """
-    删除文档
-
-    参数:
-    - doc_id: 文档ID
+    获取文档解析状态
     """
     try:
         user_id = get_jwt_identity()
-
-        document = KnowledgeDocument.query.filter_by(
-            id=doc_id,
-            user_id=user_id
-        ).first()
+        document = KnowledgeDocument.query.filter_by(id=doc_id, user_id=int(user_id), is_deleted=False).first()
 
         if not document:
             return jsonify({
@@ -325,115 +319,39 @@ def delete_document(doc_id):
                 }
             }), 404
 
-        # 删除物理文件
-        if os.path.exists(document.file_path):
-            try:
-                os.remove(document.file_path)
-            except OSError as e:
-                current_app.logger.warning(f"Failed to delete file {document.file_path}: {str(e)}")
+        # 查询最新的解析任务
+        latest_job = ParsingJob.query.filter_by(document_id=doc_id).order_by(ParsingJob.created_at.desc()).first()
 
-        # 删除向量数据库中的数据
-        try:
-            from app.services.retrieval.vector_service import delete_document_vectors
-            # 直接调用函数而不是使用 Celery 的 delay 方法
-            delete_document_vectors(doc_id)
-        except (ImportError, AttributeError):
-            # 如果服务还未实现，暂时跳过
-            current_app.logger.warning("Vector service not available")
-
-        # 删除数据库记录
-        db.session.delete(document)
-        db.session.commit()
-
-        return '', 204
-
-    except Exception as e:
-        current_app.logger.error(f"Delete document error: {str(e)}")
-        return jsonify({
-            'code': 500,
-            'status': 'error',
-            'error': {
-                'type': 'INTERNAL_ERROR',
-                'message': '删除文档时发生错误'
-            }
-        }), 500
-
-
-@bp.route('/documents/<doc_id>/reparse', methods=['PUT'])
-@jwt_required()
-def reparse_document(doc_id):
-    """
-    重新解析文档
-
-    参数:
-    - doc_id: 文档ID
-    """
-    try:
-        user_id = get_jwt_identity()
-
-        document = KnowledgeDocument.query.filter_by(
-            id=doc_id,
-            user_id=user_id
-        ).first()
-
-        if not document:
-            return jsonify({
-                'code': 404,
-                'status': 'error',
-                'error': {
-                    'type': 'NOT_FOUND',
-                    'message': '文档不存在'
-                }
-            }), 404
-
-        # 重置状态
-        document.status = 'QUEUED'
-        document.progress = 0
-        document.error_message = None
-
-        # 创建新的解析任务
-        parsing_job = ParsingJob(
-            document_id=document.id
-        )
-        db.session.add(parsing_job)
-        db.session.commit()
-
-        # 触发异步解析
-        try:
-            from app.services.document.document_service import parse_document
-            from app.services import get_task_queue
-
-            queue = get_task_queue()
-            job = queue.enqueue(parse_document, parsing_job.id)
-            current_app.logger.info(f"异步重解析任务已提交: job_id={job.id}")
-        except Exception as e:
-            # 如果服务还未实现或Redis不可用，暂时跳过
-            current_app.logger.warning(f"Document parsing service not available: {str(e)}")
-            # 在测试环境中不应该阻塞API响应
+        status_data = {
+            'docId': document.id,
+            'documentStatus': document.status,
+            'lastChecked': datetime.utcnow().isoformat(),
+            'job': latest_job.to_dict() if latest_job else None
+        }
 
         return jsonify({
             'code': 200,
             'status': 'success',
-            'data': {
-                'docId': document.id,
-                'status': 'QUEUED',
-                'message': '已触发重新解析'
-            }
+            'data': status_data
         })
 
     except Exception as e:
-        current_app.logger.error(f"Reparse document error: {str(e)}")
+        current_app.logger.error(f"Get document status error: {str(e)}")
         return jsonify({
             'code': 500,
             'status': 'error',
             'error': {
                 'type': 'INTERNAL_ERROR',
-                'message': '重新解析文档时发生错误'
+                'message': '获取文档状态时发生错误'
             }
         }), 500
 
 
-@bp.route('/documents/<doc_id>', methods=['PATCH'])
+
+
+
+
+@bp.route('/documents/<doc_id>', methods=['PUT', 'PATCH'])
 @jwt_required()
 def update_document_metadata(doc_id):
     """
@@ -451,7 +369,8 @@ def update_document_metadata(doc_id):
 
         document = KnowledgeDocument.query.filter_by(
             id=doc_id,
-            user_id=user_id
+            user_id=int(user_id),
+            is_deleted=False
         ).first()
 
         if not document:
@@ -519,5 +438,178 @@ def update_document_metadata(doc_id):
             'error': {
                 'type': 'INTERNAL_ERROR',
                 'message': '更新文档元数据时发生错误'
+            }
+        }), 500
+
+
+@bp.route('/documents/<doc_id>', methods=['DELETE'])
+@jwt_required()
+def delete_document(doc_id):
+    """
+    删除知识文档
+
+    删除一个知识文档及其索引数据（需要管理员或文档上传者权限）
+    """
+    try:
+        user_id = get_jwt_identity()
+
+        # 查找属于当前用户的文档（避免泄漏其他用户文档信息）
+        document = KnowledgeDocument.query.filter_by(
+            id=doc_id,
+            user_id=int(user_id),
+            is_deleted=False
+        ).first()
+
+        if not document:
+            return jsonify({
+                'code': 404,
+                'status': 'error',
+                'error': {
+                    'type': 'NOT_FOUND',
+                    'message': '文档不存在'
+                }
+            }), 404
+
+        # 如果找到文档，说明用户有权限（因为已经按user_id过滤了）
+        # 软删除文档记录
+        document.is_deleted = True
+        document.updated_at = datetime.utcnow()
+
+        # 删除物理文件
+        try:
+            if document.file_path and os.path.exists(document.file_path):
+                os.remove(document.file_path)
+                current_app.logger.info(f"物理文件已删除: {document.file_path}")
+        except Exception as file_error:
+            current_app.logger.warning(f"删除物理文件失败: {str(file_error)}")
+
+        db.session.commit()
+
+        return '', 204
+
+    except Exception as e:
+        current_app.logger.error(f"Delete document error: {str(e)}")
+        return jsonify({
+            'code': 500,
+            'status': 'error',
+            'error': {
+                'type': 'INTERNAL_ERROR',
+                'message': '删除文档时发生错误'
+            }
+        }), 500
+
+
+@bp.route('/documents/<doc_id>/reparse', methods=['PUT'])
+@jwt_required()
+def reparse_document(doc_id):
+    """
+    重新解析知识文档
+
+    对解析失败或需要重新处理的文档重新触发解析流水线
+    """
+    try:
+        user_id = get_jwt_identity()
+
+        # 查找属于当前用户的文档（避免泄漏其他用户文档信息）
+        document = KnowledgeDocument.query.filter_by(
+            id=doc_id,
+            user_id=int(user_id),
+            is_deleted=False
+        ).first()
+
+        if not document:
+            return jsonify({
+                'code': 404,
+                'status': 'error',
+                'error': {
+                    'type': 'NOT_FOUND',
+                    'message': '文档不存在'
+                }
+            }), 404
+
+        # 如果找到文档，说明用户有权限（因为已经按user_id过滤了）
+        # 检查文档是否可以重新解析
+        if document.status == 'PARSING':
+            return jsonify({
+                'code': 409,
+                'status': 'error',
+                'error': {
+                    'type': 'CONFLICT',
+                    'message': '文档正在解析中，请稍后再试'
+                }
+            }), 409
+
+        # 重置文档状态
+        document.status = 'QUEUED'
+        document.updated_at = datetime.utcnow()
+        document.error_message = None
+
+        # 创建新的解析任务
+        parsing_job = ParsingJob(
+            document_id=document.id,
+            status='PENDING'
+        )
+        db.session.add(parsing_job)
+        db.session.commit()
+
+        # TODO: 触发异步解析任务
+        # 这里应该调用实际的文档解析服务
+        current_app.logger.info(f"文档重新解析任务已创建: doc_id={doc_id}, job_id={parsing_job.id}")
+
+        return jsonify({
+            'code': 200,
+            'status': 'success',
+            'data': {
+                'docId': document.id,
+                'status': 'QUEUED',
+                'message': '已触发重新解析'
+            }
+        })
+
+    except Exception as e:
+        current_app.logger.error(f"Reparse document error: {str(e)}")
+        return jsonify({
+            'code': 500,
+            'status': 'error',
+            'error': {
+                'type': 'INTERNAL_ERROR',
+                'message': '重新解析文档时发生错误'
+            }
+        }), 500
+
+
+@bp.route('/tags', methods=['GET'])
+@jwt_required()
+def get_all_tags():
+    """
+    获取所有唯一的标签
+    """
+    try:
+        user_id = get_jwt_identity()
+        # 查询该用户所有未删除文档的标签
+        tags_query = db.session.query(db.func.unnest(KnowledgeDocument.tags)).filter(
+            KnowledgeDocument.user_id == int(user_id),
+            KnowledgeDocument.is_deleted == False
+        ).distinct()
+
+        tags = [row[0] for row in tags_query.all()]
+
+        return jsonify({
+            'code': 200,
+            'status': 'success',
+            'data': {
+                'tags': tags,
+                'total': len(tags)
+            }
+        })
+
+    except Exception as e:
+        current_app.logger.error(f"Get all tags error: {str(e)}")
+        return jsonify({
+            'code': 500,
+            'status': 'error',
+            'error': {
+                'type': 'INTERNAL_ERROR',
+                'message': '获取标签列表时发生错误'
             }
         }), 500

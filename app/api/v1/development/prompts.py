@@ -5,9 +5,11 @@
 """
 
 from flask import Blueprint, request, jsonify, current_app
-from flask_jwt_extended import jwt_required, get_jwt_identity
+from flask_jwt_extended import jwt_required
+from app import db
 from app.api.v1.development import dev_bp as bp
 from app.services.ai.llm_service import LLMService
+from app.models.prompt import PromptTemplate
 from app.services.storage.cache_service import get_cache_service
 from app.utils.monitoring import get_monitor
 import logging
@@ -308,6 +310,121 @@ def clear_cache():
             'success': False,
             'error': str(e)
         }), 500
+
+
+
+# --- Prompt Template Management ---
+
+@bp.route('/prompts', methods=['POST'])
+@jwt_required()
+def create_prompt_template():
+    """
+    创建新的提示词模板
+    """
+    data = request.get_json()
+    if not data or not data.get('name') or not data.get('content'):
+        return jsonify({'code': 400, 'status': 'error', 'error': {'type': 'BAD_REQUEST', 'message': '缺少必要参数: name, content'}}), 400
+
+    if PromptTemplate.query.filter_by(name=data['name']).first():
+        return jsonify({'code': 409, 'status': 'error', 'error': {'type': 'CONFLICT', 'message': '同名提示词模板已存在'}}), 409
+
+    try:
+        new_prompt = PromptTemplate(
+            name=data['name'],
+            content=data['content'],
+            description=data.get('description'),
+            category=data.get('category'),
+            is_active=data.get('is_active', False)
+        )
+        db.session.add(new_prompt)
+        db.session.commit()
+        return jsonify({'code': 201, 'status': 'success', 'data': new_prompt.to_dict()}), 201
+    except Exception as e:
+        db.session.rollback()
+        current_app.logger.error(f"Failed to create prompt template: {e}")
+        return jsonify({'code': 500, 'status': 'error', 'error': {'type': 'INTERNAL_ERROR', 'message': '创建提示词模板失败'}}), 500
+
+
+@bp.route('/prompts', methods=['GET'])
+@jwt_required()
+def get_prompt_templates():
+    """
+    获取提示词模板列表（分页）
+    """
+    page = request.args.get('page', 1, type=int)
+    per_page = request.args.get('per_page', 10, type=int)
+    templates = PromptTemplate.query.order_by(PromptTemplate.created_at.desc()).paginate(page=page, per_page=per_page, error_out=False)
+    return jsonify({
+        'code': 200,
+        'status': 'success',
+        'data': [t.to_dict() for t in templates.items],
+        'pagination': {
+            'page': templates.page,
+            'per_page': templates.per_page,
+            'total_pages': templates.pages,
+            'total_items': templates.total
+        }
+    })
+
+
+@bp.route('/prompts/<int:prompt_id>', methods=['GET'])
+@jwt_required()
+def get_prompt_template(prompt_id):
+    """
+    获取指定ID的提示词模板
+    """
+    template = PromptTemplate.query.get_or_404(prompt_id)
+    return jsonify({'code': 200, 'status': 'success', 'data': template.to_dict()})
+
+
+@bp.route('/prompts/<int:prompt_id>', methods=['PUT'])
+@jwt_required()
+def update_prompt_template(prompt_id):
+    """
+    更新指定ID的提示词模板
+    """
+    template = PromptTemplate.query.get_or_404(prompt_id)
+    data = request.get_json()
+    if not data:
+        return jsonify({'code': 400, 'status': 'error', 'error': {'type': 'BAD_REQUEST', 'message': '请求体不能为空'}}), 400
+
+    try:
+        if 'name' in data and data['name'] != template.name:
+            if PromptTemplate.query.filter(PromptTemplate.id != prompt_id, PromptTemplate.name == data['name']).first():
+                return jsonify({'code': 409, 'status': 'error', 'error': {'type': 'CONFLICT', 'message': '同名提示词模板已存在'}}), 409
+            template.name = data['name']
+
+        if 'content' in data and data['content'] != template.content:
+            template.content = data['content']
+            template.version += 1
+
+        template.description = data.get('description', template.description)
+        template.category = data.get('category', template.category)
+        template.is_active = data.get('is_active', template.is_active)
+
+        db.session.commit()
+        return jsonify({'code': 200, 'status': 'success', 'data': template.to_dict()})
+    except Exception as e:
+        db.session.rollback()
+        current_app.logger.error(f"Failed to update prompt template {prompt_id}: {e}")
+        return jsonify({'code': 500, 'status': 'error', 'error': {'type': 'INTERNAL_ERROR', 'message': '更新提示词模板失败'}}), 500
+
+
+@bp.route('/prompts/<int:prompt_id>', methods=['DELETE'])
+@jwt_required()
+def delete_prompt_template(prompt_id):
+    """
+    删除指定ID的提示词模板
+    """
+    template = PromptTemplate.query.get_or_404(prompt_id)
+    try:
+        db.session.delete(template)
+        db.session.commit()
+        return '', 204
+    except Exception as e:
+        db.session.rollback()
+        current_app.logger.error(f"Failed to delete prompt template {prompt_id}: {e}")
+        return jsonify({'code': 500, 'status': 'error', 'error': {'type': 'INTERNAL_ERROR', 'message': '删除提示词模板失败'}}), 500
 
 
 @bp.route('/health', methods=['GET'])

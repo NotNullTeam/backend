@@ -30,9 +30,13 @@ class KnowledgeDocument(db.Model):
     progress = db.Column(db.Integer, default=0)
     error_message = db.Column(db.Text)
 
+    # 软删除标志
+    is_deleted = db.Column(db.Boolean, default=False, nullable=False)
+
     # 时间戳
     uploaded_at = db.Column(db.DateTime, default=datetime.utcnow)
     processed_at = db.Column(db.DateTime)
+    updated_at = db.Column(db.DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
 
     user_id = db.Column(db.Integer, db.ForeignKey('users.id'), nullable=False)
 

@@ -110,6 +110,40 @@ class LLMService:
                 'error': str(e)
             }
 
+    @monitor_performance("llm_regenerate_content", slow_threshold=4.0)
+    def regenerate_content(self, context: Dict[str, Any]) -> str:
+        """
+        根据上下文重新生成内容。
+
+        Args:
+            context: 上下文信息，包含原始查询、原始分析、用户提示和策略。
+
+        Returns:
+            重新生成的内容。
+        """
+        try:
+            regeneration_prompt = f"""
+            请根据以下信息重新生成分析或解决方案：
+            原始查询：{context.get('original_query', 'N/A')}
+            原始分析：{context.get('original_analysis', 'N/A')}
+            用户指导：{context.get('user_prompt', '无')}
+            生成策略：{context.get('strategy', 'default')}
+
+            请提供一个更新后的、更完善的回复。
+            """
+
+            messages = [
+                SystemMessage(content=SYSTEM_ROLE_PROMPT),
+                HumanMessage(content=regeneration_prompt)
+            ]
+
+            response = self.llm.invoke(messages)
+            return response.content
+
+        except Exception as e:
+            logger.error(f"内容重新生成失败: {str(e)}")
+            return f"内容重新生成过程中出现错误: {str(e)}"
+
     def _extract_category(self, content: str) -> str:
         """从回复中提取问题类别"""
         content_lower = content.lower()

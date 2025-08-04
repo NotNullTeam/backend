@@ -22,7 +22,7 @@ from app import db, redis_client
 from datetime import datetime
 
 
-@bp.route('/knowledge/documents/<document_id>/parse-idp', methods=['POST'])
+@bp.route('/idp/documents/<document_id>/parse', methods=['POST'])
 @jwt_required()
 def parse_document_idp(document_id):
     """
@@ -154,7 +154,7 @@ def parse_document_idp(document_id):
         }), 500
 
 
-@bp.route('/knowledge/parsing-jobs/<job_id>/status', methods=['GET'])
+@bp.route('/idp/jobs/<job_id>/status', methods=['GET'])
 @jwt_required()
 def get_parsing_job_status(job_id):
     """
@@ -229,7 +229,7 @@ def get_parsing_job_status(job_id):
         }), 500
 
 
-@bp.route('/knowledge/documents/<document_id>/chunks', methods=['GET'])
+@bp.route('/idp/documents/<document_id>/chunks', methods=['GET'])
 @jwt_required()
 def get_document_chunks(document_id):
     """
@@ -334,7 +334,7 @@ def get_document_chunks(document_id):
         }), 500
 
 
-@bp.route('/knowledge/idp/statistics', methods=['GET'])
+@bp.route('/idp/statistics', methods=['GET'])
 @jwt_required()
 def get_idp_statistics():
     """
@@ -389,7 +389,7 @@ def get_idp_statistics():
         }), 500
 
 
-@bp.route('/knowledge/idp/supported-formats', methods=['GET'])
+@bp.route('/idp/formats', methods=['GET'])
 def get_supported_formats():
     """
     获取IDP支持的文档格式
@@ -417,7 +417,7 @@ def get_supported_formats():
         }), 500
 
 
-@bp.route('/knowledge/documents/<document_id>/reprocess', methods=['POST'])
+@bp.route('/idp/reprocess/<document_id>', methods=['POST'])
 @jwt_required()
 def reprocess_document_api(document_id):
     """
@@ -473,7 +473,7 @@ def reprocess_document_api(document_id):
         }), 500
 
 
-@bp.route('/knowledge/documents/parse-from-url', methods=['POST'])
+@bp.route('/idp/parse-url', methods=['POST'])
 @jwt_required()
 def parse_document_from_url():
     """

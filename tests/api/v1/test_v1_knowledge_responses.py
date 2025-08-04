@@ -348,3 +348,65 @@ class TestKnowledgeAPIResponses:
         assert data['code'] == 401
         assert data['status'] == 'error'
         assert data['error']['type'] == 'UNAUTHORIZED'
+
+    def test_reparse_document_response(self, client, auth_headers):
+        """测试重新解析文档响应格式"""
+        # 假设文档ID为1
+        response = client.put('/api/v1/knowledge/documents/1/reparse', headers=auth_headers)
+
+        if response.status_code == 200:
+            data = response.get_json()
+
+            assert data['code'] == 200
+            assert data['status'] == 'success'
+            assert 'data' in data
+
+            reparse_data = data['data']
+            assert 'docId' in reparse_data
+            assert 'status' in reparse_data
+            assert 'message' in reparse_data
+            assert reparse_data['status'] == 'QUEUED'
+
+        elif response.status_code == 404:
+            data = response.get_json()
+            assert data['code'] == 404
+            assert data['status'] == 'error'
+            assert data['error']['type'] == 'NOT_FOUND'
+
+    def test_update_document_metadata_response(self, client, auth_headers):
+        """测试更新文档元数据响应格式"""
+        # 假设文档ID为1
+        response = client.patch('/api/v1/knowledge/documents/1',
+                               json={
+                                   'tags': ['OSPF', 'BGP'],
+                                   'vendor': 'Huawei'
+                               },
+                               headers=auth_headers)
+
+        if response.status_code == 200:
+            data = response.get_json()
+
+            assert data['code'] == 200
+            assert data['status'] == 'success'
+            assert 'message' in data
+
+        elif response.status_code == 404:
+            data = response.get_json()
+            assert data['code'] == 404
+            assert data['status'] == 'error'
+            assert data['error']['type'] == 'NOT_FOUND'
+
+    def test_update_document_metadata_invalid_data(self, client, auth_headers):
+        """测试使用无效数据更新文档元数据"""
+        # 假设文档ID为1
+        response = client.patch('/api/v1/knowledge/documents/1',
+                               json={
+                                   'tags': 'invalid_format',  # 应该是数组
+                               },
+                               headers=auth_headers)
+
+        if response.status_code == 400:
+            data = response.get_json()
+            assert data['code'] == 400
+            assert data['status'] == 'error'
+            assert data['error']['type'] == 'INVALID_REQUEST'

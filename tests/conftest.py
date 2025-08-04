@@ -12,6 +12,8 @@ from app.models.user import User
 from app.models.case import Case, Node, Edge
 from app.models.knowledge import KnowledgeDocument, ParsingJob
 from app.models.feedback import Feedback
+from app.models.files import UserFile
+import uuid
 
 
 class TestConfig:
@@ -149,8 +151,13 @@ def test_case(test_user):
 
 
 @pytest.fixture
-def test_document(test_user):
+def test_document(auth_headers):
     """创建测试文档"""
+    # 获取当前认证用户
+    from app.models.user import User
+    user = User.query.filter_by(username='testuser').first()
+    assert user is not None
+
     # 创建临时文件
     temp_file = tempfile.NamedTemporaryFile(delete=False, suffix='.txt')
     temp_file.write(b'Test document content')
@@ -162,7 +169,7 @@ def test_document(test_user):
         file_path=temp_file.name,
         file_size=20,
         mime_type='text/plain',
-        user_id=test_user.id,
+        user_id=user.id,
         vendor='Huawei',
         tags=['network', 'router']
     )
@@ -175,6 +182,37 @@ def test_document(test_user):
     if os.path.exists(temp_file.name):
         os.unlink(temp_file.name)
 
+
+@pytest.fixture
+def test_user_file(test_user):
+    """创建一个测试文件记录"""
+    # In case the test needs a physical file
+    temp_dir = tempfile.gettempdir()
+    file_path = os.path.join(temp_dir, 'test_fixture.txt')
+    with open(file_path, 'w') as f:
+        f.write('This is a test file from fixture.')
+
+    file = UserFile(
+        id=str(uuid.uuid4()),
+        filename='test_fixture.txt',
+        original_filename='test_fixture.txt',
+        file_path=file_path,
+        file_size=os.path.getsize(file_path),
+        file_type='document',
+        mime_type='text/plain',
+        user_id=test_user.id
+    )
+    db.session.add(file)
+    db.session.commit()
+
+    yield file
+
+    # Cleanup
+    db.session.delete(file)
+    db.session.commit()
+    if os.path.exists(file_path):
+        os.remove(file_path)
+
 import os
 import tempfile
 import pytest
@@ -183,6 +221,8 @@ from app.models.user import User
 from app.models.case import Case, Node, Edge
 from app.models.knowledge import KnowledgeDocument, ParsingJob
 from app.models.feedback import Feedback
+from app.models.files import UserFile
+import uuid
 from config.settings import TestingConfig
 
 

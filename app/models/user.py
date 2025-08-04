@@ -27,6 +27,7 @@ class User(db.Model):
     cases = db.relationship('Case', backref='user', lazy='dynamic', cascade='all, delete-orphan')
     knowledge_documents = db.relationship('KnowledgeDocument', backref='user', lazy='dynamic', cascade='all, delete-orphan')
     feedback = db.relationship('Feedback', foreign_keys='Feedback.user_id', backref='user', lazy='dynamic', cascade='all, delete-orphan')
+    settings = db.relationship('UserSettings', back_populates='user', uselist=False, cascade='all, delete-orphan')
 
     def set_password(self, password):
         """

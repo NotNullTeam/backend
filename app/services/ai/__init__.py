@@ -6,6 +6,7 @@ AI服务模块
 - 嵌入服务：文本向量化
 - Agent服务：AI Agent异步任务处理
 - LangGraph Agent服务：基于langgraph的智能对话Agent
+- 日志解析服务：AI智能日志分析
 """
 
 from .llm_service import LLMService
@@ -16,6 +17,7 @@ from .langgraph_agent_service import (
     submit_langgraph_response_processing_task,
     get_langgraph_task_status
 )
+from .log_parsing_service import log_parsing_service
 
 __all__ = [
     'LLMService',
@@ -24,5 +26,6 @@ __all__ = [
     'RetrievalService',
     'submit_langgraph_query_analysis_task',
     'submit_langgraph_response_processing_task',
-    'get_langgraph_task_status'
+    'get_langgraph_task_status',
+    'log_parsing_service'
 ]

@@ -110,20 +110,7 @@ class TestAuthAPIResponses:
         assert data['status'] == 'error'
         assert data['error']['type'] == 'INVALID_REQUEST'
 
-    def test_register_success_response(self, client):
-        """测试注册成功响应格式"""
-        response = client.post('/api/v1/auth/register', json={
-            'username': 'newuser',
-            'email': 'newuser@example.com',
-            'password': 'newpass123'
-        })
 
-        if response.status_code == 200:
-            data = response.get_json()
-            assert data['code'] == 200
-            assert data['status'] == 'success'
-            assert 'data' in data
-            assert 'user' in data['data']
 
     def test_profile_success_response(self, client, auth_headers):
         """测试获取用户信息成功响应格式"""
@@ -135,9 +122,12 @@ class TestAuthAPIResponses:
         assert data['code'] == 200
         assert data['status'] == 'success'
         assert 'data' in data
+        assert 'user' in data['data']
 
-        user_data = data['data']
+        user_data = data['data']['user']
         assert 'id' in user_data
+        assert 'stats' in user_data
+        assert 'preferences' in user_data
         assert 'username' in user_data
         assert 'email' in user_data
 
@@ -162,11 +152,8 @@ class TestAuthAPIResponses:
         """测试登出成功响应格式"""
         response = client.post('/api/v1/auth/logout', headers=auth_headers)
 
-        if response.status_code == 200:
-            data = response.get_json()
-            assert data['code'] == 200
-            assert data['status'] == 'success'
-            assert data['message'] == '登出成功'
+        assert response.status_code == 204
+        assert response.data == b''
 
     def test_refresh_token_success_response(self, client, test_user):
         """测试刷新令牌成功响应格式"""

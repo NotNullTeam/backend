@@ -12,6 +12,13 @@ from app.models.user import User
 from app.models.feedback import Feedback
 from app import db
 from datetime import datetime
+import uuid
+from app.utils.response_helper import (
+    success_response, error_response, validation_error, not_found_error,
+    internal_error, paginated_response
+)
+from app.services.retrieval.knowledge_service import knowledge_service
+from app.services.network.vendor_command_service import vendor_command_service
 
 
 @bp.route('/', methods=['GET'])
@@ -24,6 +31,7 @@ def get_cases():
     - status: 案例状态过滤 (open, solved, closed)
     - vendor: 厂商过滤
     - category: 分类过滤
+    - attachmentType: 附件类型过滤 (image, document, log, config, other)
     - page: 页码 (默认1)
     - pageSize: 每页大小 (默认10)
     """
@@ -34,6 +42,7 @@ def get_cases():
         status = request.args.get('status')
         vendor = request.args.get('vendor')
         category = request.args.get('category')
+        attachment_type = request.args.get('attachmentType')
         page = int(request.args.get('page', 1))
         page_size = int(request.args.get('pageSize', 10))
 
@@ -69,6 +78,40 @@ def get_cases():
                     }
                 })
 
+        # 按附件类型过滤
+        if attachment_type:
+            from app.models.files import UserFile
+            # 获取所有指定类型的文件
+            files_with_type = UserFile.query.filter(
+                UserFile.file_type == attachment_type,
+                UserFile.user_id == str(user_id),
+                UserFile.is_deleted == False
+            ).all()
+
+            # 从 associated_cases JSON 字段中提取案例ID
+            case_ids_with_attachments = []
+            for file in files_with_type:
+                if file.associated_cases:
+                    case_ids_with_attachments.extend(file.associated_cases)
+
+            # 去重
+            case_ids_with_attachments = list(set(case_ids_with_attachments))
+
+            if case_ids_with_attachments:
+                query = query.filter(Case.id.in_(case_ids_with_attachments))
+            else:
+                # 如果没有符合条件的案例，返回空结果
+                return jsonify({
+                    'code': 200,
+                    'status': 'success',
+                    'data': {
+                        'items': [],
+                        'total': 0,
+                        'page': page,
+                        'pageSize': page_size
+                    }
+                })
+
         # 分页查询
         pagination = query.order_by(Case.updated_at.desc()).paginate(
             page=page,
@@ -78,39 +121,134 @@ def get_cases():
 
         cases = pagination.items
 
-        return jsonify({
-            'code': 200,
-            'status': 'success',
-            'data': {
-                'items': [case.to_dict() for case in cases],
-                'pagination': {
-                    'total': pagination.total,
-                    'page': page,
-                    'per_page': page_size,
-                    'pages': pagination.pages
-                }
+        return paginated_response(
+            items=[case.to_dict() for case in cases],
+            pagination_info={
+                'total': pagination.total,
+                'page': page,
+                'per_page': page_size,
+                'pages': pagination.pages
             }
-        })
+        )
 
     except ValueError as e:
-        return jsonify({
-            'code': 400,
-            'status': 'error',
-            'error': {
-                'type': 'INVALID_REQUEST',
-                'message': '分页参数必须为正整数'
-            }
-        }), 400
+        return validation_error('分页参数必须为正整数')
     except Exception as e:
         current_app.logger.error(f"Get cases error: {str(e)}")
-        return jsonify({
-            'code': 500,
-            'status': 'error',
-            'error': {
-                'type': 'INTERNAL_ERROR',
-                'message': '获取案例列表时发生错误'
-            }
-        }), 500
+        return internal_error('获取案例列表时发生错误')
+
+
+@bp.route('/<case_id>/nodes/<node_id>/regenerate', methods=['POST'])
+@jwt_required()
+def regenerate_node(case_id, node_id):
+    """
+    重新生成节点内容
+
+    请求体参数:
+    - prompt: 用户的指导性提示 (可选)
+    - regeneration_strategy: 生成策略 (可选, e.g., 'more_detailed', 'simpler')
+    """
+    try:
+        user_id = get_jwt_identity()
+        data = request.get_json() or {}
+
+        # 验证案例和节点
+        node = Node.query.join(Case).filter(
+            Case.id == case_id,
+            Case.user_id == user_id,
+            Node.id == node_id
+        ).first()
+
+        if not node:
+            return not_found_error('案例或节点不存在')
+
+        # 模拟调用AI服务重新生成内容
+        # 在真实实现中，这里会调用一个类似 case_service.regenerate_node 的服务
+        from app.services.ai.llm_service import LLMService
+        llm_service = LLMService()
+
+        # 构建上下文
+        parent_node = Node.query.get(node.parent_id) if node.parent_id else None
+        context = {
+            'original_query': parent_node.content if parent_node else 'N/A',
+            'original_analysis': node.content,
+            'user_prompt': data.get('prompt', ''),
+            'strategy': data.get('regeneration_strategy', 'default')
+        }
+
+        # 假设LLM服务有这样一个方法
+        new_content = llm_service.regenerate_content(context)
+
+        # 更新节点
+        node.content = new_content
+        node.updated_at = datetime.utcnow()
+        db.session.commit()
+
+        return success_response({
+            'message': '节点已成功重新生成',
+            'node': node.to_dict()
+        })
+
+    except Exception as e:
+        db.session.rollback()
+        current_app.logger.error(f"Regenerate node error: {str(e)}")
+        return internal_error('重新生成节点时发生错误')
+
+
+@bp.route('/<case_id>/nodes/<node_id>/rate', methods=['POST'])
+@jwt_required()
+def rate_node(case_id, node_id):
+    """
+    评价节点
+
+    请求体参数:
+    - rating: 评分 (必需, 1-5)
+    - comment: 评论 (可选)
+    """
+    try:
+        user_id = get_jwt_identity()
+        data = request.get_json()
+
+        if not data:
+            return validation_error('请求体不能为空')
+
+        rating = data.get('rating')
+        if rating is None or not (isinstance(rating, int) and 1 <= rating <= 5):
+            return validation_error('评分必须是1到5之间的整数')
+
+        # 验证案例和节点
+        node = Node.query.join(Case).filter(
+            Case.id == case_id,
+            Case.user_id == user_id,
+            Node.id == node_id
+        ).first()
+
+        if not node:
+            return not_found_error('案例或节点不存在')
+
+        # 更新节点的元数据以包含评分
+        if not node.metadata:
+            node.metadata = {}
+
+        node.metadata['rating'] = {
+            'value': rating,
+            'comment': data.get('comment', ''),
+            'rated_at': datetime.utcnow().isoformat()
+        }
+
+        # 标记为需要更新
+        db.session.add(node)
+        db.session.commit()
+
+        return success_response({
+            'message': '节点评价已提交',
+            'rating': node.metadata['rating']
+        })
+
+    except Exception as e:
+        db.session.rollback()
+        current_app.logger.error(f"Rate node error: {str(e)}")
+        return internal_error('评价节点时发生错误')
 
 
 @bp.route('/', methods=['POST'])
@@ -629,6 +767,98 @@ def handle_interaction(case_id):
         }), 500
 
 
+@bp.route('/<case_id>/nodes', methods=['GET'])
+@jwt_required()
+def get_case_nodes(case_id):
+    """
+    获取案例节点列表
+
+    返回指定案例的所有节点
+    """
+    try:
+        user_id = get_jwt_identity()
+
+        # 验证案例存在且属于当前用户
+        case = Case.query.filter_by(id=case_id, user_id=user_id).first()
+        if not case:
+            return jsonify({
+                'code': 404,
+                'status': 'error',
+                'error': {
+                    'type': 'NOT_FOUND',
+                    'message': '案例不存在'
+                }
+            }), 404
+
+        # 获取案例的所有节点
+        nodes = Node.query.filter_by(case_id=case_id).order_by(Node.created_at.asc()).all()
+
+        return jsonify({
+            'code': 200,
+            'status': 'success',
+            'data': {
+                'nodes': [node.to_dict() for node in nodes]
+            }
+        })
+
+    except Exception as e:
+        current_app.logger.error(f"Get case nodes error: {str(e)}")
+        return jsonify({
+            'code': 500,
+            'status': 'error',
+            'error': {
+                'type': 'INTERNAL_ERROR',
+                'message': '获取案例节点时发生错误'
+            }
+        }), 500
+
+
+@bp.route('/<case_id>/edges', methods=['GET'])
+@jwt_required()
+def get_case_edges(case_id):
+    """
+    获取案例边列表
+
+    返回指定案例的所有边
+    """
+    try:
+        user_id = get_jwt_identity()
+
+        # 验证案例存在且属于当前用户
+        case = Case.query.filter_by(id=case_id, user_id=user_id).first()
+        if not case:
+            return jsonify({
+                'code': 404,
+                'status': 'error',
+                'error': {
+                    'type': 'NOT_FOUND',
+                    'message': '案例不存在'
+                }
+            }), 404
+
+        # 获取案例的所有边
+        edges = Edge.query.filter_by(case_id=case_id).order_by(Edge.id.asc()).all()
+
+        return jsonify({
+            'code': 200,
+            'status': 'success',
+            'data': {
+                'edges': [edge.to_dict() for edge in edges]
+            }
+        })
+
+    except Exception as e:
+        current_app.logger.error(f"Get case edges error: {str(e)}")
+        return jsonify({
+            'code': 500,
+            'status': 'error',
+            'error': {
+                'type': 'INTERNAL_ERROR',
+                'message': '获取案例边时发生错误'
+            }
+        }), 500
+
+
 @bp.route('/<case_id>/nodes/<node_id>', methods=['GET'])
 @jwt_required()
 def get_node_detail(case_id, node_id):
@@ -844,144 +1074,78 @@ def get_case_status(case_id):
         }), 500
 
 
-@bp.route('/<case_id>/feedback', methods=['POST'])
+@bp.route('/<case_id>/feedback', methods=['PUT'])
 @jwt_required()
-def submit_feedback(case_id):
+def create_or_update_feedback(case_id):
     """
-    提交案例反馈
+    创建或更新案例反馈
 
-    请求体参数:
-    - outcome: 解决结果 (solved, unsolved, partially_solved) (必需)
-    - rating: 评分 1-5 (可选)
-    - comment: 评论 (可选)
-    - corrected_solution: 修正的解决方案 (可选)
-    - knowledge_contribution: 知识贡献 (可选)
-    - additional_context: 额外上下文 (可选)
+    对应文档: 3.9 创建/更新案例反馈
+    Endpoint: PUT /cases/{caseId}/feedback
     """
     try:
         user_id = get_jwt_identity()
         data = request.get_json()
 
-        if not data:
-            return jsonify({
-                'code': 400,
-                'status': 'error',
-                'error': {
-                    'type': 'INVALID_REQUEST',
-                    'message': '请求体不能为空'
-                }
-            }), 400
-
         # 验证案例存在且属于当前用户
         case = Case.query.filter_by(id=case_id, user_id=user_id).first()
         if not case:
-            return jsonify({
-                'code': 404,
-                'status': 'error',
-                'error': {
-                    'type': 'NOT_FOUND',
-                    'message': '案例不存在'
-                }
-            }), 404
+            return not_found_error('案例不存在')
 
-        outcome = data.get('outcome')
-        if not outcome:
-            return jsonify({
-                'code': 400,
-                'status': 'error',
-                'error': {
-                    'type': 'INVALID_REQUEST',
-                    'message': '解决结果不能为空'
-                }
-            }), 400
+        # 验证输入数据
+        if not data or 'outcome' not in data or data['outcome'] not in ['solved', 'unsolved', 'partially_solved']:
+            return validation_error('outcome 字段是必需的，且必须是 solved, unsolved, 或 partially_solved 之一')
 
-        if outcome not in ['solved', 'unsolved', 'partially_solved']:
-            return jsonify({
-                'code': 400,
-                'status': 'error',
-                'error': {
-                    'type': 'INVALID_REQUEST',
-                    'message': '无效的解决结果'
-                }
-            }), 400
+        feedback = Feedback.query.filter_by(case_id=case_id).first()
 
-        # 验证评分
-        rating = data.get('rating')
-        if rating is not None:
-            if not isinstance(rating, int) or rating < 1 or rating > 5:
-                return jsonify({
-                    'code': 400,
-                    'status': 'error',
-                    'error': {
-                        'type': 'INVALID_REQUEST',
-                        'message': '评分必须是1-5之间的整数'
-                    }
-                }), 400
+        is_new = False
+        if not feedback:
+            # 创建新反馈
+            is_new = True
+            feedback = Feedback(
+                id=str(uuid.uuid4()),
+                case_id=case_id,
+                user_id=user_id
+            )
+            db.session.add(feedback)
 
-        # 检查是否已经提交过反馈
-        existing_feedback = Feedback.query.filter_by(
-            case_id=case_id,
-            user_id=user_id
-        ).first()
+        # 更新字段
+        feedback.outcome = data['outcome']
+        feedback.rating = data.get('rating', feedback.rating)
+        feedback.comment = data.get('comment', feedback.comment)
+        feedback.corrected_solution = data.get('corrected_solution', feedback.corrected_solution)
 
-        if existing_feedback:
-            return jsonify({
-                'code': 400,
-                'status': 'error',
-                'error': {
-                    'type': 'DUPLICATE_FEEDBACK',
-                    'message': '该案例已经提交过反馈'
-                }
-            }), 400
+        # 处理知识贡献
+        if 'knowledge_contribution' in data and isinstance(data.get('knowledge_contribution'), dict):
+            current_kc = feedback.knowledge_contribution or {}
+            current_kc.update(data['knowledge_contribution'])
+            feedback.knowledge_contribution = current_kc
 
-        # 创建反馈记录
-        feedback = Feedback(
-            case_id=case_id,
-            user_id=user_id,
-            outcome=outcome,
-            rating=rating,
-            comment=data.get('comment'),
-            corrected_solution=data.get('corrected_solution'),
-            knowledge_contribution=data.get('knowledge_contribution'),
-            additional_context=data.get('additional_context')
-        )
+        # 处理额外上下文
+        if 'additional_context' in data and isinstance(data.get('additional_context'), dict):
+            current_ac = feedback.additional_context or {}
+            current_ac.update(data['additional_context'])
+            feedback.additional_context = current_ac
 
-        db.session.add(feedback)
+        feedback.updated_at = datetime.utcnow()
 
-        # 根据反馈结果更新案例状态
-        if outcome == 'solved':
+        # 同步案例状态
+        if feedback.outcome == 'solved':
             case.status = 'solved'
-        elif outcome == 'unsolved':
-            # 保持案例为open状态，可能需要进一步处理
-            pass
+        elif case.status == 'solved': # 从 'solved' 改为其他状态
+            case.status = 'open'
 
-        case.updated_at = datetime.utcnow()
         db.session.commit()
 
-        return jsonify({
-            'code': 200,
-            'status': 'success',
-            'data': {
-                'feedbackId': feedback.id,
-                'outcome': feedback.outcome,
-                'rating': feedback.rating,
-                'comment': feedback.comment,
-                'message': '反馈已收到',
-                'caseStatus': case.status
-            }
-        })
+        if is_new:
+            return success_response(feedback.to_dict(), 201) # 201 Created
+        else:
+            return success_response(feedback.to_dict(), 200) # 200 OK
 
     except Exception as e:
         db.session.rollback()
-        current_app.logger.error(f"Submit feedback error: {str(e)}")
-        return jsonify({
-            'code': 500,
-            'status': 'error',
-            'error': {
-                'type': 'INTERNAL_ERROR',
-                'message': '提交反馈时发生错误'
-            }
-        }), 500
+        current_app.logger.error(f"Submit/Update feedback error for case {case_id}: {str(e)}")
+        return internal_error('提交或更新反馈时发生错误')
 
 
 @bp.route('/<case_id>/feedback', methods=['GET'])
@@ -998,6 +1162,37 @@ def get_feedback(case_id):
         # 验证案例存在且属于当前用户
         case = Case.query.filter_by(id=case_id, user_id=user_id).first()
         if not case:
+            return not_found_error('案例不存在')
+
+        feedback = Feedback.query.filter_by(case_id=case_id).first()
+
+        if not feedback:
+            return not_found_error('此案例暂无反馈信息')
+
+        return success_response(feedback.to_dict())
+
+    except Exception as e:
+        current_app.logger.error(f"Get feedback error for case {case_id}: {str(e)}")
+        return internal_error('获取反馈信息时发生错误')
+
+
+@bp.route('/<case_id>/nodes/<node_id>/knowledge', methods=['GET'])
+@jwt_required()
+def get_node_knowledge(case_id, node_id):
+    """
+    获取节点知识溯源
+
+    查询参数:
+    - topK: 返回的文档片段数量 (可选，默认5)
+    - vendor: 按指定厂商过滤 (可选)
+    - retrievalWeight: 检索权重 (可选，默认0.7)
+    """
+    try:
+        user_id = get_jwt_identity()
+
+        # 验证案例存在且属于当前用户
+        case = Case.query.filter_by(id=case_id, user_id=user_id).first()
+        if not case:
             return jsonify({
                 'code': 404,
                 'status': 'error',
@@ -1007,47 +1202,153 @@ def get_feedback(case_id):
                 }
             }), 404
 
-        # 查找反馈
-        feedback = Feedback.query.filter_by(
-            case_id=case_id,
-            user_id=user_id
-        ).first()
-
-        if not feedback:
+        # 查找节点
+        node = Node.query.filter_by(id=node_id, case_id=case_id).first()
+        if not node:
             return jsonify({
                 'code': 404,
                 'status': 'error',
                 'error': {
                     'type': 'NOT_FOUND',
-                    'message': '该案例暂无反馈'
+                    'message': '节点不存在'
                 }
             }), 404
 
-        return jsonify({
-            'code': 200,
-            'status': 'success',
-            'data': feedback.to_dict()
-        })
+        # 获取查询参数
+        top_k = request.args.get('topK', 5, type=int)
+        vendor = request.args.get('vendor')
+        retrieval_weight = request.args.get('retrievalWeight', 0.7, type=float)
+
+        # 验证参数
+        if top_k < 1 or top_k > 20:
+            return validation_error('topK参数必须在1-20之间')
+
+        if retrieval_weight < 0 or retrieval_weight > 1:
+            return validation_error('retrievalWeight参数必须在0-1之间')
+
+        # 调用真实的知识检索服务
+        try:
+            # 构建查询文本
+            query_text = ""
+            if node.content:
+                if isinstance(node.content, dict):
+                    query_text = node.content.get('text', '') or node.content.get('analysis', '') or node.content.get('answer', '')
+                else:
+                    query_text = str(node.content)
+
+            if not query_text and node.title:
+                query_text = node.title
+
+            # 执行知识检索
+            retrieval_result = knowledge_service.retrieve_knowledge(
+                query=query_text,
+                top_k=top_k,
+                vendor=vendor,
+                retrieval_weight=retrieval_weight
+            )
+
+            return success_response({
+                'nodeId': node_id,
+                'sources': retrieval_result['sources'],
+                'retrievalMetadata': retrieval_result['retrievalMetadata']
+            })
+
+        except Exception as retrieval_error:
+            current_app.logger.error(f"Knowledge retrieval service error: {str(retrieval_error)}")
+            # 如果服务失败，返回空结果
+            return success_response({
+                'nodeId': node_id,
+                'sources': [],
+                'retrievalMetadata': {
+                    'totalCandidates': 0,
+                    'retrievalTime': 0,
+                    'rerankTime': 0,
+                    'strategy': 'service_unavailable'
+                }
+            })
 
     except Exception as e:
-        current_app.logger.error(f"Get feedback error: {str(e)}")
-        return jsonify({
-            'code': 500,
-            'status': 'error',
-            'error': {
-                'type': 'INTERNAL_ERROR',
-                'message': '获取反馈时发生错误'
-            }
-        }), 500
+        current_app.logger.error(f"Get node knowledge error: {str(e)}")
+        return internal_error('获取节点知识溯源时发生错误')
 
 
-@bp.route('/<case_id>/feedback', methods=['PUT'])
+@bp.route('/<case_id>/nodes/<node_id>/commands', methods=['GET'])
 @jwt_required()
-def update_feedback(case_id):
+def get_node_commands(case_id, node_id):
     """
-    更新案例反馈
+    获取节点厂商命令
 
-    允许用户修改已提交的反馈
+    查询参数:
+    - vendor: 设备厂商 (必需)
+    """
+    try:
+        user_id = get_jwt_identity()
+
+        # 验证案例存在且属于当前用户
+        case = Case.query.filter_by(id=case_id, user_id=user_id).first()
+        if not case:
+            return jsonify({
+                'code': 404,
+                'status': 'error',
+                'error': {
+                    'type': 'NOT_FOUND',
+                    'message': '案例不存在'
+                }
+            }), 404
+
+        # 查找节点
+        node = Node.query.filter_by(id=node_id, case_id=case_id).first()
+        if not node:
+            return jsonify({
+                'code': 404,
+                'status': 'error',
+                'error': {
+                    'type': 'NOT_FOUND',
+                    'message': '节点不存在'
+                }
+            }), 404
+
+        # 获取厂商参数
+        vendor = request.args.get('vendor')
+        if not vendor:
+            return validation_error('厂商参数不能为空')
+
+        # 验证厂商
+        supported_vendors = vendor_command_service.get_supported_vendors()
+        if vendor not in supported_vendors:
+            return validation_error(f'无效的设备厂商，支持: {", ".join(supported_vendors)}')
+
+        # 调用真实的厂商命令生成服务
+        try:
+            commands = vendor_command_service.generate_commands(node, vendor)
+
+            return success_response({
+                'vendor': vendor,
+                'commands': commands
+            })
+
+        except Exception as command_error:
+            current_app.logger.error(f"Vendor command service error: {str(command_error)}")
+            # 如果服务失败，返回基础命令
+            return success_response({
+                'vendor': vendor,
+                'commands': []
+            })
+
+    except Exception as e:
+        current_app.logger.error(f"Get node commands error: {str(e)}")
+        return internal_error('获取节点厂商命令时发生错误')
+
+
+@bp.route('/<case_id>/layout', methods=['PUT'])
+@jwt_required()
+def save_canvas_layout(case_id):
+    """
+    保存画布布局
+
+    请求体:
+    - nodePositions: 节点位置信息 (必需)
+    - viewportState: 视口状态信息 (可选)
     """
     try:
         user_id = get_jwt_identity()
@@ -1075,84 +1376,129 @@ def update_feedback(case_id):
                 }
             }), 404
 
-        # 查找反馈
-        feedback = Feedback.query.filter_by(
-            case_id=case_id,
-            user_id=user_id
-        ).first()
+        node_positions = data.get('nodePositions')
+        viewport_state = data.get('viewportState', {})
 
-        if not feedback:
+        if not node_positions:
             return jsonify({
-                'code': 404,
+                'code': 400,
                 'status': 'error',
                 'error': {
-                    'type': 'NOT_FOUND',
-                    'message': '反馈不存在'
+                    'type': 'INVALID_REQUEST',
+                    'message': '节点位置信息不能为空'
                 }
-            }), 404
+            }), 400
 
-        # 更新字段
-        if 'outcome' in data:
-            if data['outcome'] not in ['solved', 'unsolved', 'partially_solved']:
+        # 验证节点位置格式
+        if not isinstance(node_positions, list):
+            return jsonify({
+                'code': 400,
+                'status': 'error',
+                'error': {
+                    'type': 'INVALID_REQUEST',
+                    'message': '节点位置信息必须是数组格式'
+                }
+            }), 400
+
+        for position in node_positions:
+            if not isinstance(position, dict) or \
+               'nodeId' not in position or \
+               'x' not in position or \
+               'y' not in position:
                 return jsonify({
                     'code': 400,
                     'status': 'error',
                     'error': {
                         'type': 'INVALID_REQUEST',
-                        'message': '无效的解决结果'
+                        'message': '节点位置信息格式不正确，需要包含nodeId、x、y字段'
                     }
                 }), 400
-            feedback.outcome = data['outcome']
 
-            # 同步更新案例状态
-            if data['outcome'] == 'solved':
-                case.status = 'solved'
-            elif data['outcome'] == 'unsolved':
-                case.status = 'open'  # 重新打开案例
+        # 保存布局信息到案例元数据
+        if not case.metadata:
+            case.metadata = {}
 
-        if 'rating' in data:
-            rating = data['rating']
-            if rating is not None:
-                if not isinstance(rating, int) or rating < 1 or rating > 5:
-                    return jsonify({
-                        'code': 400,
-                        'status': 'error',
-                        'error': {
-                            'type': 'INVALID_REQUEST',
-                            'message': '评分必须是1-5之间的整数'
-                        }
-                    }), 400
-            feedback.rating = rating
-
-        if 'comment' in data:
-            feedback.comment = data['comment']
-
-        if 'corrected_solution' in data:
-            feedback.corrected_solution = data['corrected_solution']
-
-        if 'knowledge_contribution' in data:
-            feedback.knowledge_contribution = data['knowledge_contribution']
-
-        if 'additional_context' in data:
-            feedback.additional_context = data['additional_context']
+        case.metadata['layout'] = {
+            'nodePositions': node_positions,
+            'viewportState': viewport_state,
+            'lastSaved': datetime.utcnow().isoformat()
+        }
 
         case.updated_at = datetime.utcnow()
         db.session.commit()
 
-        return jsonify({
-            'code': 200,
-            'status': 'success',
-            'data': feedback.to_dict()
-        })
+        return '', 204
 
     except Exception as e:
         db.session.rollback()
-        current_app.logger.error(f"Update feedback error: {str(e)}")
+        current_app.logger.error(f"Save canvas layout error: {str(e)}")
         return jsonify({
             'code': 500,
             'status': 'error',
             'error': {
                 'type': 'INTERNAL_ERROR',
-                'message': '更新反馈时发生错误'
+                'message': '保存画布布局时发生错误'
+            }
+        }), 500
+
+
+@bp.route('/<case_id>/layout', methods=['GET'])
+@jwt_required()
+def get_canvas_layout(case_id):
+    """获取画布布局"""
+    try:
+        user_id = get_jwt_identity()
+
+        # 验证案例存在且属于当前用户
+        case = Case.query.filter_by(id=case_id, user_id=user_id).first()
+        if not case:
+            return jsonify({
+                'code': 404,
+                'status': 'error',
+                'error': {
+                    'type': 'NOT_FOUND',
+                    'message': '案例不存在'
+                }
+            }), 404
+
+        # 获取布局信息
+        layout = case.metadata.get('layout') if case.metadata else None
+
+        if not layout:
+            # 返回默认布局
+            return jsonify({
+                'code': 200,
+                'status': 'success',
+                'data': {
+                    'nodePositions': [],
+                    'viewportState': {
+                        'zoom': 1.0,
+                        'centerX': 0,
+                        'centerY': 0
+                    }
+                }
+            })
+
+        return jsonify({
+            'code': 200,
+            'status': 'success',
+            'data': {
+                'nodePositions': layout.get('nodePositions', []),
+                'viewportState': layout.get('viewportState', {
+                    'zoom': 1.0,
+                    'centerX': 0,
+                    'centerY': 0
+                })
+            }
+        })
+
+    except Exception as e:
+        current_app.logger.error(f"Get canvas layout error: {str(e)}")
+        return jsonify({
+            'code': 500,
+            'status': 'error',
+            'error': {
+                'type': 'INTERNAL_ERROR',
+                'message': '获取画布布局时发生错误'
             }
         }), 500
