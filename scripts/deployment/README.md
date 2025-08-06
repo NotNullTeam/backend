@@ -4,23 +4,35 @@
 
 ## 脚本说明
 
-### `start_weaviate.py` - Weaviate服务启动
-启动和管理Weaviate向量数据库服务。
+### `setup_env.py` - 生成本地环境文件
+根据 `backend/.env.example` 生成 `backend/.env`，并随机写入 `SECRET_KEY`、`JWT_SECRET_KEY`。
+
+```bash
+python scripts/deployment/setup_env.py
+```
+
+### `start_worker.sh` - RQ Worker Shell 启动脚本
+Docker Compose 中调用，用于连接 Redis 并监听队列。
+
+```bash
+./backend/scripts/deployment/start_worker.sh  # 本地调试
+```
+
+### `start_weaviate.py` - Weaviate 服务启动
+独立启动/调试 Weaviate（通常由 docker-compose 管理）。
 
 ```bash
 python scripts/deployment/start_weaviate.py
 ```
 
-### `worker.py` - RQ Worker进程
-启动Redis Queue (RQ) Worker进程，处理后台任务。
+### `worker.py` - 纯 Python 版本 RQ Worker（可选）
+如不使用 `start_worker.sh`，可直接运行：
 
 ```bash
-# 启动单个worker
-python scripts/deployment/worker.py
-
-# 启动多个worker
-python scripts/deployment/worker.py --workers 4
+python scripts/deployment/worker.py --workers 2
 ```
+
+> 实际生产推荐使用 `docker compose up`，后端、Redis、Weaviate、Worker 均由 `docker-compose.yml` 协调启动。
 
 ## 部署流程
 
