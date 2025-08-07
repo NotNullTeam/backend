@@ -1,0 +1,286 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8" />
+  <title>IP 智慧解答专家 API</title>
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <script src="https://cdn.tailwindcss.com"></script>
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css" />
+  <link rel="stylesheet" href="https://unpkg.com/swagger-ui-dist@5/swagger-ui.css" />
+  <style>
+    :root {
+      --primary-blue: #2563eb;
+      --sidebar-width: 280px;
+      --border-color: #e5e7eb;
+    }
+
+    /* 侧边栏样式 */
+    #sidebar {
+      width: var(--sidebar-width);
+      background: #ffffff;
+      border-right: 1px solid var(--border-color);
+      box-shadow: 0 0 20px rgba(37, 99, 235, 0.08);
+    }
+
+    /* 覆盖 swagger-ui 默认宽度 */
+    #swagger-ui {
+      margin-left: var(--sidebar-width);
+    }
+
+    /* 隐藏 swagger-ui 原生顶部信息 */
+    .swagger-ui .info hgroup.main {
+      display: none;
+    }
+
+    /* 自定义滚动条 */
+    #sidebar::-webkit-scrollbar {
+      width: 4px;
+    }
+    #sidebar::-webkit-scrollbar-track {
+      background: transparent;
+    }
+    #sidebar::-webkit-scrollbar-thumb {
+      background: #cbd5e1;
+      border-radius: 2px;
+    }
+    #sidebar::-webkit-scrollbar-thumb:hover {
+      background: #94a3b8;
+    }
+
+    /* 导航链接悬停效果 */
+    .nav-link {
+      transition: all 0.15s ease;
+    }
+    .nav-link:hover {
+      background: #f8fafc;
+      border-left: 3px solid var(--primary-blue);
+      padding-left: 13px;
+    }
+
+    /* 科技感光效 */
+    .tech-glow {
+      position: relative;
+    }
+    .tech-glow::before {
+      content: '';
+      position: absolute;
+      top: 0;
+      left: 0;
+      right: 0;
+      height: 1px;
+      background: linear-gradient(90deg, transparent, var(--primary-blue), transparent);
+      opacity: 0.6;
+    }
+  </style>
+</head>
+<body class="bg-gray-50 min-h-screen">
+  <div class="flex">
+    <!-- 左侧导航 -->
+    <aside id="sidebar" class="h-screen sticky top-0 overflow-y-auto">
+      <!-- 头部区域 -->
+      <div class="tech-glow p-6 border-b border-gray-200">
+        <div class="flex items-center space-x-3 mb-4">
+          <div class="w-10 h-10 bg-blue-50 rounded-lg flex items-center justify-center">
+            <i class="fas fa-network-wired text-blue-600 text-lg"></i>
+          </div>
+          <div>
+            <h1 class="text-lg font-semibold text-gray-900">API 文档</h1>
+            <p class="text-xs text-gray-500">v1.0.0</p>
+          </div>
+        </div>
+        <!-- 搜索框 -->
+        <div class="relative">
+          <i class="fas fa-search absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400 text-sm"></i>
+          <input id="search-input" type="text" placeholder="搜索接口..."
+                 class="w-full pl-9 pr-4 py-2 bg-gray-50 border border-gray-200 rounded-lg text-sm text-gray-700 placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent" />
+        </div>
+      </div>
+
+      <!-- 快速上手 -->
+      <section class="p-4 border-b border-gray-200" id="quickstart">
+        <div class="bg-blue-50 rounded-lg p-4">
+          <div class="flex items-center space-x-2 mb-3">
+            <i class="fas fa-play-circle text-blue-600"></i>
+            <h2 class="font-medium text-gray-900">快速上手</h2>
+          </div>
+          <div class="space-y-2 text-sm text-gray-600">
+            <div class="flex items-center space-x-2">
+              <span class="w-4 h-4 bg-blue-600 text-white rounded-full flex items-center justify-center text-xs font-medium">1</span>
+              <p>点击 <code class="bg-white px-1 py-0.5 rounded text-xs border">Authorize</code> 认证</p>
+            </div>
+            <div class="flex items-center space-x-2">
+              <span class="w-4 h-4 bg-blue-600 text-white rounded-full flex items-center justify-center text-xs font-medium">2</span>
+              <p>选择接口分类</p>
+            </div>
+            <div class="flex items-center space-x-2">
+              <span class="w-4 h-4 bg-blue-600 text-white rounded-full flex items-center justify-center text-xs font-medium">3</span>
+              <p>测试 API 调用</p>
+            </div>
+          </div>
+        </div>
+      </section>
+
+      <!-- 统计信息 -->
+      <section class="px-4 pb-4">
+        <div class="bg-gradient-to-r from-blue-50 to-indigo-50 rounded-lg p-3 text-center border border-blue-100">
+          <div class="text-xl font-semibold text-blue-600" id="total-apis">-</div>
+          <div class="text-xs text-gray-500">接口总数</div>
+        </div>
+      </section>
+
+      <!-- 命名空间导航列表 -->
+      <nav id="tag-nav" class="px-4 pb-4 space-y-1"></nav>
+    </aside>
+
+    <!-- 右侧 swagger ui -->
+    <main class="flex-1">
+      <!-- 顶部工具栏 -->
+      <div class="tech-glow bg-white border-b border-gray-200 px-6 py-4 flex items-center justify-between">
+        <div>
+          <h2 class="text-lg font-semibold text-gray-900">IP 智慧解答专家 API</h2>
+          <p class="text-sm text-gray-500">基于RAG与大小模型协同的数通知识问答系统</p>
+        </div>
+        <div class="flex items-center space-x-3">
+          <a href="/api/v1/swagger.json" target="_blank"
+             class="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors text-sm font-medium">
+            <i class="fas fa-download mr-2"></i>导出 JSON
+          </a>
+        </div>
+      </div>
+
+      <!-- Swagger UI 容器 -->
+      <div id="swagger-ui" class="p-6"></div>
+    </main>
+  </div>
+
+  <script src="https://unpkg.com/swagger-ui-dist@5/swagger-ui-bundle.js"></script>
+  <script>
+    // 初始化 Swagger UI
+    // Swagger UI 加载完成后的回调
+    const onSwaggerComplete = () => {
+      // 先等待视图渲染稳定，再构建侧边栏
+      setTimeout(() => tryBuildSidebar(), 300);
+      // 动画
+      setTimeout(() => {
+        document.getElementById('sidebar').style.opacity = '1';
+        document.getElementById('swagger-ui').style.opacity = '1';
+      }, 300);
+    };
+
+    const ui = SwaggerUIBundle({
+      url: '/api/v1/swagger.json',
+      dom_id: '#swagger-ui',
+      docExpansion: 'none',
+      deepLinking: true,
+      presets: [SwaggerUIBundle.presets.apis],
+      layout: 'BaseLayout',
+      onComplete: onSwaggerComplete,
+    });
+
+    // 图标映射
+    const namespaceIcons = {
+      'system': 'fas fa-cog',
+      'knowledge': 'fas fa-brain',
+      'cases': 'fas fa-folder-open',
+      'files': 'fas fa-file-alt',
+      'user': 'fas fa-users',
+      'notifications': 'fas fa-bell',
+      'auth': 'fas fa-shield-alt',
+      'analysis': 'fas fa-chart-line',
+      'development': 'fas fa-code'
+    };
+
+    // 渲染侧边导航
+    function getTotalApisFromSpec() {
+      if (!ui || !ui.specSelectors || !ui.specSelectors.specJson) return 0;
+      const spec = ui.specSelectors.specJson().toJS();
+      if (!spec || !spec.paths) return 0;
+      return Object.values(spec.paths).reduce((sum, item) => sum + Object.keys(item).length, 0);
+    }
+
+    function buildSidebar() {
+      const nav = document.getElementById('tag-nav');
+      const totalApis = document.getElementById('total-apis');
+      nav.innerHTML = '';
+
+      let totalCount = 0;
+      const sections = document.querySelectorAll('.opblock-tag-section');
+      
+      sections.forEach(section => {
+        const tagRaw = section.getAttribute('id');
+        if (!tagRaw) {
+          // 跳过没有 id 的元素，避免空指针报错
+          return;
+        }
+        const tag = tagRaw.replace('operations-tag-', '');
+        const titleEl = section.querySelector('h4 span');
+        const title = titleEl ? titleEl.textContent : tag;
+        const count = section.querySelectorAll('.opblock').length;
+        totalCount += count;
+
+        const iconClass = namespaceIcons[tag] || 'fas fa-folder';
+
+        const li = document.createElement('li');
+        li.innerHTML = `
+          <a href="#${tagRaw}" class="flex items-center p-2 text-gray-700 rounded-lg hover:bg-blue-100/50 group nav-link">
+            <i class="${iconClass} w-5 h-5 text-gray-500 transition duration-75 group-hover:text-blue-600"></i>
+            <span class="flex-1 ms-3 whitespace-nowrap">${title}</span>
+            <span class="inline-flex items-center justify-center w-5 h-5 p-2 ms-3 text-sm font-medium text-blue-800 bg-blue-100 rounded-full">${count}</span>
+          </a>
+        `;
+        nav.appendChild(li);
+      });
+
+      // 始终使用 Swagger spec 计算接口总数
+      totalCount = getTotalApisFromSpec();
+      totalApis.textContent = totalCount > 0 ? totalCount : '-';
+      console.log(`Sidebar built. Total APIs: ${totalCount}`);
+      return totalCount;
+    }
+
+    // 搜索过滤
+    document.getElementById('search-input').addEventListener('input', e => {
+      const q = e.target.value.toLowerCase();
+      document.querySelectorAll('.opblock-tag').forEach(el => {
+        el.parentElement.style.display = el.textContent.toLowerCase().includes(q) ? '' : 'none';
+      });
+
+      // 同时过滤侧边栏导航
+      document.querySelectorAll('.nav-link').forEach(link => {
+        link.style.display = link.textContent.toLowerCase().includes(q) ? 'flex' : 'none';
+      });
+    });
+
+    // 尝试构建侧边栏，带重试逻辑
+    function tryBuildSidebar(retries = 30, delay = 500) {
+      console.log(`Attempting to build sidebar, retries left: ${retries}`);
+      
+      const count = buildSidebar();
+
+      if (count > 0) {
+        console.log('Sidebar build successful.');
+        return;
+      }
+
+      if (retries > 0) {
+        console.log('Sidebar build failed, retrying...');
+        setTimeout(() => tryBuildSidebar(retries - 1, delay), delay);
+      } else {
+        console.error('Swagger UI did not load in time, sidebar not built.');
+        const totalApisEl = document.getElementById('total-apis');
+        if (totalApisEl) {
+            totalApisEl.textContent = 'N/A';
+        }
+      }
+    }
+
+    // 初始化时设置透明度
+    document.addEventListener('DOMContentLoaded', () => {
+      document.getElementById('sidebar').style.opacity = '0';
+      document.getElementById('swagger-ui').style.opacity = '0';
+      document.getElementById('sidebar').style.transition = 'opacity 0.2s ease';
+      document.getElementById('swagger-ui').style.transition = 'opacity 0.2s ease';
+    });
+  </script>
+</body>
+</html>

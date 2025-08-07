@@ -7,13 +7,14 @@
 from flask import jsonify
 
 
-def success_response(data=None, code=200):
+def success_response(data=None, code=200, message=None):
     """
     生成成功响应
 
     Args:
         data: 响应数据
         code: HTTP状态码，默认200
+        message: 可选的消息（为了兼容性，通常不使用）
 
     Returns:
         Flask Response对象
@@ -25,6 +26,10 @@ def success_response(data=None, code=200):
 
     if data is not None:
         response['data'] = data
+
+    # message参数为了兼容性而添加，但通常不使用
+    if message is not None:
+        response['message'] = message
 
     return jsonify(response), code
 

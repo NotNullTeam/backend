@@ -82,7 +82,7 @@ def auth_headers(client):
 
     assert response.status_code == 200
     data = response.get_json()
-    token = data['data']['access_token']
+    token = data['access_token']  # RESTX API格式：直接字段
 
     return {'Authorization': f'Bearer {token}'}
 
@@ -108,7 +108,7 @@ def admin_headers(client):
 
     assert response.status_code == 200
     data = response.get_json()
-    token = data['data']['access_token']
+    token = data['access_token']  # RESTX API格式：直接字段
 
     return {'Authorization': f'Bearer {token}'}
 
@@ -331,7 +331,7 @@ def auth_headers(client, sample_user):
     })
 
     data = response.get_json()
-    token = data['data']['access_token']
+    token = data['access_token']  # RESTX API格式：直接字段
 
     return {'Authorization': f'Bearer {token}'}
 
@@ -345,7 +345,7 @@ def admin_auth_headers(client, admin_user):
     })
 
     data = response.get_json()
-    token = data['data']['access_token']
+    token = data['access_token']  # RESTX API格式：直接字段
 
     return {'Authorization': f'Bearer {token}'}
 

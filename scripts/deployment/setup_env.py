@@ -1,14 +1,14 @@
 #!/usr/bin/env python3
-"""Generate local .env from template and inject random secrets.
+"""从模板生成本地 .env，并注入随机密钥。
 
-Usage:
-    python scripts/setup_env.py [template_path] [output_path]
+使用方法:
+    python scripts/setup_env.py [模板路径] [输出路径]
 
-If paths are omitted, defaults are:
-    template_path = backend/.env.example
-    output_path  = backend/.env
+如果路径被省略，默认值为:
+    模板路径 = backend/.env.example
+    输出路径  = backend/.env
 
-The script will **not overwrite** an existing output_path.
+该脚本不会覆盖已有的输出路径。
 """
 from __future__ import annotations
 

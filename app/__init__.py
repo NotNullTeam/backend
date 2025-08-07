@@ -56,9 +56,10 @@ def create_app(config_class=Config):
     except Exception as e:
         app.logger.warning(f"jieba初始化失败: {e}")
 
-    # 注册蓝图
-    from app.api.v1 import v1_bp
-    app.register_blueprint(v1_bp)
+    # 初始化 API 文档系统
+    from app.docs import docs_bp, init_docs
+    init_docs(app)
+    app.register_blueprint(docs_bp)
 
     # 注册错误处理器
     from app.errors import register_error_handlers

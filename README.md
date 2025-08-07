@@ -4,6 +4,7 @@
 
 ## 核心技术栈
 - **后端**: Python 3.8+, Flask
+- **API文档**: Flask-RESTX (Swagger UI)
 - **数据库**: SQLite
 - **AI能力**: 阿里云百炼 (qwen-plus), Weaviate
 
@@ -30,6 +31,7 @@ docker compose ps
 ```
 
 - **访问地址**: `http://localhost:5000`
+- **API文档**: `http://localhost:5000/docs/swagger/` (Swagger UI)
 - **停止服务**: `docker compose down`
 
 ### 3. 手动本地部署 (可选)
@@ -184,7 +186,13 @@ brew services list        # macOS
 
 ## 📚 文档
 
+### API 文档
+- **在线文档**: 访问 `/docs/swagger/` 查看完整的 Swagger UI 文档
+- **本地开发**: `http://localhost:5001/docs/swagger/`
+- **生产环境**: `http://your-domain.com/docs/swagger/`
+- **技术栈**: 基于 Flask-RESTX 生成的 OpenAPI 3.0 规范
+
+### 其他文档
 - [开发指南](docs/project_management/backend-team-guide.md)
-- [API 文档](docs/system_design/api/)
 - [系统设计](docs/system_design/)
 - [贡献指南](docs/CONTRIBUTING.md)
