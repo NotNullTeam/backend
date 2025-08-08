@@ -1,0 +1,23 @@
+version: '3.8'
+
+services:
+  backend:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    ports:
+      - "5001:5001"
+    volumes:
+      - ./uploads:/app/uploads
+      - ./instance:/app/instance
+      - ./logs:/app/logs
+      - ./pip.conf:/root/.pip/pip.conf
+    env_file:
+      - ./.env
+    restart: unless-stopped
+    networks:
+      - ip-expert-network
+
+networks:
+  ip-expert-network:
+    driver: bridge
