@@ -106,3 +106,7 @@ secrets.json
 # 测试结果
 test-results/
 .pytest_cache/
+
+# Docker Volumes
+weaviate_data/
+ollama_data/

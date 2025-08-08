@@ -1,12 +1,10 @@
-version: '3.8'
-
 services:
   backend:
     build:
       context: .
       dockerfile: Dockerfile
     ports:
-      - "5001:5001"
+      - "5000:5001"
     volumes:
       - ./uploads:/app/uploads
       - ./instance:/app/instance
@@ -15,8 +13,44 @@ services:
     env_file:
       - ./.env
     restart: unless-stopped
+    depends_on:
+      - redis
+      - weaviate
+      - ollama
     networks:
       - ip-expert-network
+
+  redis:
+    image: "redis:alpine"
+    networks:
+      - ip-expert-network
+    restart: unless-stopped
+
+  weaviate:
+    image: semitechnologies/weaviate:1.24.1
+    ports:
+      - "8080:8080"
+    volumes:
+      - ./weaviate_data:/var/lib/weaviate
+    environment:
+      QUERY_DEFAULTS_LIMIT: 25
+      AUTHENTICATION_ANONYMOUS_ACCESS_ENABLED: 'true'
+      PERSISTENCE_DATA_PATH: '/var/lib/weaviate'
+      DEFAULT_VECTORIZER_MODULE: 'none'
+      CLUSTER_HOSTNAME: 'node1'
+    networks:
+      - ip-expert-network
+    restart: unless-stopped
+
+  ollama:
+    image: ollama/ollama
+    ports:
+      - "11434:11434"
+    volumes:
+      - ./ollama_data:/root/.ollama
+    networks:
+      - ip-expert-network
+    restart: unless-stopped
 
 networks:
   ip-expert-network:
