@@ -175,7 +175,8 @@ def get_documents():
             query = query.filter_by(vendor=vendor)
 
         # 分页查询
-        pagination = query.order_by(KnowledgeDocument.uploaded_at.desc()).paginate(
+        pagination = db.paginate(
+            query.order_by(KnowledgeDocument.uploaded_at.desc()),
             page=page,
             per_page=page_size,
             error_out=False
@@ -586,13 +587,19 @@ def get_all_tags():
     """
     try:
         user_id = get_jwt_identity()
-        # 查询该用户所有未删除文档的标签
-        tags_query = db.session.query(db.func.unnest(KnowledgeDocument.tags)).filter(
+        # 查询该用户所有未删除文档的标签（跨数据库兼容，不依赖数据库特定函数）
+        rows = db.session.query(KnowledgeDocument.tags).filter(
             KnowledgeDocument.user_id == int(user_id),
             KnowledgeDocument.is_deleted == False
-        ).distinct()
+        ).all()
 
-        tags = [row[0] for row in tags_query.all()]
+        tag_set = set()
+        for (tag_list,) in rows:
+            if isinstance(tag_list, list):
+                for t in tag_list:
+                    if isinstance(t, str) and t:
+                        tag_set.add(t)
+        tags = sorted(tag_set)
 
         return jsonify({
             'code': 200,

@@ -11,6 +11,7 @@ import logging
 import os
 from typing import Any, Optional, Dict
 from datetime import datetime
+from flask import current_app
 
 logger = logging.getLogger(__name__)
 
@@ -25,6 +26,7 @@ class CacheService:
         Args:
             redis_url: Redis连接URL，如果为None则从环境变量获取
         """
+        # 优先使用传入的redis_url；否则回退环境变量，缺省到db=0
         self.redis_url = redis_url or os.environ.get('REDIS_URL', 'redis://localhost:6379/0')
         try:
             self.redis_client = redis.from_url(self.redis_url, decode_responses=True)
@@ -34,6 +36,41 @@ class CacheService:
         except Exception as e:
             logger.error(f"Redis缓存服务连接失败: {e}")
             self.redis_client = None
+
+    def _resolve_redis_url(self) -> str:
+        """优先从Flask应用配置读取REDIS_URL，回退到实例/环境变量"""
+        try:
+            if current_app and current_app.config.get('REDIS_URL'):
+                return current_app.config['REDIS_URL']
+        except Exception:
+            # 无应用上下文或读取失败，忽略
+            pass
+        return os.environ.get('REDIS_URL') or self.redis_url or 'redis://localhost:6379/0'
+
+    def _connect(self):
+        """按最新配置重建连接"""
+        self.redis_url = self._resolve_redis_url()
+        self.redis_client = redis.from_url(self.redis_url, decode_responses=True)
+        return self.redis_client
+
+    def ping(self) -> bool:
+        """测试连接；失败则按配置懒重连后再测"""
+        try:
+            if self.redis_client is None:
+                self._connect()
+            self.redis_client.ping()
+            return True
+        except Exception as e:
+            logger.warning(f"Redis ping失败，尝试重连: {e}")
+            try:
+                self._connect()
+                self.redis_client.ping()
+                logger.info("Redis重连成功")
+                return True
+            except Exception as e2:
+                logger.error(f"Redis重连失败: {e2}")
+                self.redis_client = None
+                raise
 
     def get_cached_result(self, key: str) -> Optional[Dict[str, Any]]:
         """
@@ -45,20 +82,30 @@ class CacheService:
         Returns:
             缓存的结果，如果不存在则返回None
         """
-        if not self.redis_client:
-            return None
-
+        # 读取缓存，支持Redis与进程内降级缓存
         try:
-            cached = self.redis_client.get(key)
-            if cached:
-                result = json.loads(cached)
-                logger.debug(f"缓存命中: {key}")
-                return result
-            logger.debug(f"缓存未命中: {key}")
-            return None
+            if self.redis_client:
+                cached = self.redis_client.get(key)
+                if cached:
+                    result = json.loads(cached)
+                    logger.debug(f"缓存命中: {key}")
+                    return result
         except Exception as e:
-            logger.error(f"获取缓存失败: {e}")
-            return None
+            logger.warning(f"Redis获取缓存失败: {e}")
+
+        # 进程内降级缓存
+        store = getattr(self, '_fallback_store', None)
+        if store:
+            data = store.get(key)
+            if data:
+                payload, expires_at = data
+                if datetime.now().timestamp() <= expires_at:
+                    logger.debug(f"降级缓存命中: {key}")
+                    return payload
+                else:
+                    store.pop(key, None)
+        logger.debug(f"缓存未命中: {key}")
+        return None
 
     def cache_result(self, key: str, result: Dict[str, Any], expire_time: int = 3600) -> bool:
         """
@@ -72,10 +119,9 @@ class CacheService:
         Returns:
             是否缓存成功
         """
-        if not self.redis_client:
-            return False
-
         try:
+            if not self.redis_client:
+                raise RuntimeError("Redis 未连接，使用降级缓存")
             # 添加缓存时间戳
             cache_data = {
                 'data': result,
@@ -83,18 +129,18 @@ class CacheService:
                 'expires_at': expire_time
             }
 
-            success = self.redis_client.setex(
-                key,
-                expire_time,
-                json.dumps(cache_data, ensure_ascii=False)
-            )
+            success = self.redis_client.setex(key, expire_time, json.dumps(cache_data, ensure_ascii=False))
 
             if success:
                 logger.debug(f"缓存设置成功: {key}, 过期时间: {expire_time}秒")
             return success
         except Exception as e:
-            logger.error(f"设置缓存失败: {e}")
-            return False
+            logger.warning(f"Redis缓存失败，使用进程内降级缓存: {e}")
+            if not hasattr(self, '_fallback_store'):
+                self._fallback_store = {}
+            expires_at = datetime.now().timestamp() + expire_time
+            self._fallback_store[key] = ({'data': result, 'cached_at': datetime.now().isoformat(), 'expires_at': expire_time}, expires_at)
+            return True
 
     def delete_cache(self, key: str) -> bool:
         """
@@ -106,16 +152,23 @@ class CacheService:
         Returns:
             是否删除成功
         """
-        if not self.redis_client:
-            return False
+        # 支持Redis与进程内降级缓存
+        if self.redis_client:
+            try:
+                result = self.redis_client.delete(key)
+                logger.debug(f"删除缓存: {key}")
+                if result > 0:
+                    return True
+            except Exception as e:
+                logger.warning(f"从Redis删除缓存失败: {e}")
 
-        try:
-            result = self.redis_client.delete(key)
-            logger.debug(f"删除缓存: {key}")
-            return result > 0
-        except Exception as e:
-            logger.error(f"删除缓存失败: {e}")
-            return False
+        # 降级缓存删除
+        store = getattr(self, '_fallback_store', None)
+        if store and key in store:
+            store.pop(key, None)
+            logger.debug(f"从降级缓存删除: {key}")
+            return True
+        return False
 
     def generate_cache_key(self, prefix: str, *args) -> str:
         """
@@ -283,8 +336,15 @@ def cached_llm_call(cache_key_prefix: str, expire_time: int = 3600):
             # 缓存未命中，调用原函数
             try:
                 result = func(*args, **kwargs)
-                # 缓存结果
-                cache_service.cache_result(cache_key, result, expire_time)
+                # 仅缓存成功结果：跳过包含错误字段或错误类别的结果
+                should_cache = True
+                if isinstance(result, dict):
+                    if result.get('error') or result.get('category') == 'error':
+                        should_cache = False
+                if should_cache:
+                    cache_service.cache_result(cache_key, result, expire_time)
+                else:
+                    logger.debug(f"跳过缓存失败结果: {cache_key_prefix}")
                 return result
             except Exception as e:
                 logger.error(f"LLM调用失败: {e}")

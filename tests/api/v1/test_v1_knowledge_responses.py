@@ -20,7 +20,7 @@ class TestKnowledgeAPIResponses:
         file_data = io.BytesIO(b'Test document content')
         file_data.name = 'test.txt'
 
-        response = client.post('/api/v1/knowledge/upload',
+        response = client.post('/api/v1/knowledge/documents',
                               data={
                                   'file': (file_data, 'test.txt'),
                                   'category': 'general'
@@ -216,7 +216,7 @@ class TestKnowledgeAPIResponses:
     def test_invalid_file_upload_response(self, client, auth_headers):
         """测试无效文件上传响应格式"""
         # 尝试上传空文件
-        response = client.post('/api/v1/knowledge/upload',
+        response = client.post('/api/v1/knowledge/documents',
                               data={},
                               content_type='multipart/form-data',
                               headers=auth_headers)
@@ -233,7 +233,7 @@ class TestKnowledgeAPIResponses:
         file_data = io.BytesIO(b'binary data')
         file_data.name = 'test.exe'
 
-        response = client.post('/api/v1/knowledge/upload',
+        response = client.post('/api/v1/knowledge/documents',
                               data={
                                   'file': (file_data, 'test.exe'),
                                   'category': 'general'
@@ -279,7 +279,7 @@ class TestKnowledgeAPIResponses:
         file_data = io.BytesIO(large_data)
         file_data.name = 'large_file.txt'
 
-        response = client.post('/api/v1/knowledge/upload',
+        response = client.post('/api/v1/knowledge/documents',
                               data={
                                   'file': (file_data, 'large_file.txt'),
                                   'category': 'general'

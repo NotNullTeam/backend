@@ -55,9 +55,10 @@ class TestAuthAPIResponses:
 
         data = response.get_json()
 
-        # 检查RESTX API错误响应结构
+        # 检查错误响应结构（按照reference.md规范）
         assert 'error' in data
-        assert '用户名或密码错误' in data['error']
+        assert data['error']['message'] == '用户名或密码错误'
+        assert data['error']['type'] == 'UNAUTHORIZED'
 
     def test_login_missing_fields_response(self, client):
         """测试缺少字段的响应格式"""
@@ -71,12 +72,10 @@ class TestAuthAPIResponses:
 
         data = response.get_json()
 
-        # 检查错误响应 - RESTX格式
-        assert 'errors' in data or 'message' in data
-        if 'errors' in data:
-            assert 'password' in data['errors']
-        if 'message' in data:
-            assert 'validation failed' in data['message'] or 'payload' in data['message']
+        # 检查错误响应结构（按照reference.md规范）
+        assert 'error' in data
+        assert data['error']['type'] == 'INVALID_REQUEST'
+        assert '用户名和密码不能为空' in data['error']['message']
 
     def test_login_empty_body_response(self, client):
         """测试空请求体响应格式"""
@@ -85,12 +84,10 @@ class TestAuthAPIResponses:
         assert response.status_code == 400
         data = response.get_json()
 
-        # 检查错误响应 - RESTX格式
-        assert 'errors' in data or 'message' in data
-        if 'errors' in data:
-            assert 'username' in data['errors'] or 'password' in data['errors']
-        if 'message' in data:
-            assert 'validation failed' in data['message'] or 'payload' in data['message']
+        # 检查错误响应结构（按照reference.md规范）
+        assert 'error' in data
+        assert data['error']['type'] == 'INVALID_REQUEST'
+        assert '请求体不能为空' in data['error']['message']
 
     def test_login_invalid_json_response(self, client):
         """测试无效 JSON 响应格式"""
@@ -101,8 +98,10 @@ class TestAuthAPIResponses:
         assert response.status_code == 400
         data = response.get_json()
 
-        # 检查错误响应 - RESTX格式（JSON解析错误可能直接返回Flask的错误格式）
-        assert 'message' in data or 'error' in data
+        # 检查错误响应结构（按照reference.md规范）
+        assert 'error' in data
+        assert data['error']['type'] == 'INVALID_REQUEST'
+        assert '请求参数格式错误' in data['error']['message']
 
 
 
@@ -113,17 +112,21 @@ class TestAuthAPIResponses:
         assert response.status_code == 200
         data = response.get_json()
 
-        # 检查RESTX API直接返回用户信息格式
-        assert 'id' in data
-        assert 'username' in data
-        assert 'email' in data
-        assert 'is_active' in data
-        assert 'statistics' in data
+        # 检查成功响应结构（按照reference.md规范）
+        assert data['code'] == 200
+        assert data['status'] == 'success'
+        assert 'data' in data
+        assert 'user' in data['data']
+        assert 'id' in data['data']['user']
+        assert 'username' in data['data']['user']
+        assert 'email' in data['data']['user']
+        assert 'is_active' in data['data']['user']
+        assert 'stats' in data['data']['user']
 
         # 检查统计信息
-        stats = data['statistics']
-        assert 'uploaded_documents' in stats
-        assert 'created_cases' in stats
+        stats = data['data']['user']['stats']
+        assert 'cases' in stats
+        assert 'feedback_count' in stats
 
     def test_profile_unauthorized_response(self, client):
         """测试未授权访问用户信息响应格式"""
@@ -132,15 +135,11 @@ class TestAuthAPIResponses:
         assert response.status_code == 401
         data = response.get_json()
 
-        # JWT默认错误格式或自定义格式
-        if 'msg' in data:
-            # Flask-JWT-Extended 默认格式
-            assert 'msg' in data
-            assert data['msg'] == 'Missing Authorization Header'
-        else:
-            # 自定义格式
-            assert data['code'] == 401
-            assert data['status'] == 'error'
+        # 检查错误响应结构（按照reference.md规范）
+        assert data['code'] == 401
+        assert data['status'] == 'error'
+        assert 'error' in data
+        assert data['error']['type'] == 'UNAUTHORIZED'
 
     def test_logout_success_response(self, client, auth_headers):
         """测试登出成功响应格式"""
@@ -217,24 +216,21 @@ class TestAuthAPIResponses:
             response = client.post(endpoint, json=payload)
             data = response.get_json()
 
-            # RESTX API错误响应格式检查
-            # 应该至少有一个错误字段：'error', 'errors', 或 'message'
-            assert ('error' in data or 'errors' in data or 'message' in data), f"No error field found in response: {data}"
+            # 检查错误响应格式（按照reference.md规范）
+            assert 'error' in data, f"No error field found in response: {data}"
+            assert 'code' in data and data['code'] >= 400
+            assert 'status' in data and data['status'] == 'error'
 
             # 确保响应是错误状态码
             assert response.status_code >= 400
 
-        # 测试JWT相关的未授权错误（可能有不同格式）
+        # 测试JWT相关的未授权错误
         response = client.get('/api/v1/auth/me')
         data = response.get_json()
 
-        # 允许两种格式：JWT默认格式或自定义格式
+        # 检查错误响应格式（按照reference.md规范）
         assert response.status_code == 401
-        if 'msg' in data:
-            # Flask-JWT-Extended 默认格式
-            assert 'msg' in data
-        else:
-            # 自定义格式
-            assert 'code' in data
-            assert 'status' in data
-            assert 'error' in data
+        assert 'code' in data and data['code'] == 401
+        assert 'status' in data and data['status'] == 'error'
+        assert 'error' in data
+        assert data['error']['type'] == 'UNAUTHORIZED'

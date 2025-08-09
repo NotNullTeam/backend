@@ -9,21 +9,22 @@ from flask_restx import Resource, fields
 from sqlalchemy import text
 
 from app import db
-from app.docs import system_ns
+from app.docs import get_namespace
 from app.utils.response_helper import success_response, error_response
 from app.services.storage.cache_service import cache_service
 
 def init_system_api():
     """初始化系统 API接口"""
-    # 直接使用导入的 system_ns 命名空间
-    
+    # 动态获取 RESTX 命名空间，避免测试中复用陈旧实例导致重复注册
+    system_ns = get_namespace('system')
+
     # 健康检查响应模型
     health_model = system_ns.model('HealthCheck', {
         'healthy': fields.Boolean(description='系统是否健康'),
         'services': fields.Raw(description='各服务状态'),
         'timestamp': fields.String(description='检查时间戳')
     })
-    
+
     # 系统状态响应模型
     status_model = system_ns.model('SystemStatus', {
         'status': fields.String(description='系统运行状态'),
@@ -38,16 +39,16 @@ def init_system_api():
     @system_ns.route('/health')
     class HealthCheck(Resource):
         @system_ns.doc('health_check')
-        @system_ns.marshal_with(health_model)
         def get(self):
             """系统健康检查
-            
+
             检查系统各组件的健康状态，包括数据库、Redis等服务。
             """
             try:
+                from datetime import datetime
                 health_status = {
                     'healthy': True,
-                    'timestamp': db.func.now(),
+                    'timestamp': datetime.utcnow().isoformat() + 'Z',
                     'services': {}
                 }
 
@@ -90,45 +91,56 @@ def init_system_api():
                     'response_time': 0.01
                 }
 
-                return success_response(health_status)
+                # RESTX端点返回纯dict/状态码，避免对 Flask Response 再次序列化
+                return {
+                    'code': 200,
+                    'status': 'success',
+                    'data': health_status
+                }, 200
 
             except Exception as e:
                 current_app.logger.error(f"健康检查失败: {e}")
-                return error_response("健康检查失败", str(e), 500)
+                return {
+                    'code': 500,
+                    'status': 'error',
+                    'error': {
+                        'type': 'INTERNAL_ERROR',
+                        'message': f"健康检查失败: {str(e)}"
+                    }
+                }, 500
 
     @system_ns.route('/status')
     class SystemStatus(Resource):
         @system_ns.doc('system_status')
-        @system_ns.marshal_with(status_model)
         def get(self):
             """系统状态信息
-            
+
             获取系统的详细运行状态，包括版本、运行时间、资源使用情况等。
             """
             try:
                 import psutil
                 import time
                 from datetime import datetime, timedelta
-                
+
                 # 获取系统启动时间
                 boot_time = datetime.fromtimestamp(psutil.boot_time())
                 uptime = datetime.now() - boot_time
                 uptime_str = f"{uptime.days} days, {uptime.seconds // 3600} hours"
-                
+
                 # 检查数据库状态
                 try:
                     db.session.execute(text('SELECT 1'))
                     database_status = "connected"
                 except:
                     database_status = "disconnected"
-                
+
                 # 检查Redis状态
                 try:
                     cache_service.ping()
                     redis_status = "connected"
                 except:
                     redis_status = "disconnected"
-                
+
                 status_info = {
                     'status': 'running',
                     'version': '1.0.0',
@@ -136,35 +148,46 @@ def init_system_api():
                     'database_status': database_status,
                     'redis_status': redis_status,
                     'system': {
-                        'cpu_percent': psutil.cpu_percent(interval=1),
+                        'cpu_percent': psutil.cpu_percent(interval=0.1),
                         'memory_percent': psutil.virtual_memory().percent,
                         'disk_percent': psutil.disk_usage('/').percent
                     },
                     'timestamp': datetime.utcnow().isoformat() + 'Z'
                 }
-                
-                return success_response(status_info)
-                
+
+                return {
+                    'code': 200,
+                    'status': 'success',
+                    'data': status_info
+                }, 200
+
             except Exception as e:
                 current_app.logger.error(f"获取系统状态失败: {e}")
-                return error_response("获取系统状态失败", str(e), 500)
+                return {
+                    'code': 500,
+                    'status': 'error',
+                    'error': {
+                        'type': 'INTERNAL_ERROR',
+                        'message': f"获取系统状态失败: {str(e)}"
+                    }
+                }, 500
 
     @system_ns.route('/metrics')
     class SystemMetrics(Resource):
         @system_ns.doc('system_metrics')
         def get(self):
             """系统指标信息
-            
+
             获取系统的详细指标数据，用于监控和分析。
             """
             try:
                 import psutil
                 from datetime import datetime
-                
+
                 metrics = {
                     'timestamp': datetime.utcnow().isoformat() + 'Z',
                     'cpu': {
-                        'percent': psutil.cpu_percent(interval=1),
+                        'percent': psutil.cpu_percent(interval=0.1),
                         'count': psutil.cpu_count(),
                         'freq': psutil.cpu_freq()._asdict() if psutil.cpu_freq() else None
                     },
@@ -182,9 +205,20 @@ def init_system_api():
                     },
                     'network': dict(psutil.net_io_counters()._asdict()) if psutil.net_io_counters() else {}
                 }
-                
-                return success_response(metrics)
-                
+
+                return {
+                    'code': 200,
+                    'status': 'success',
+                    'data': metrics
+                }, 200
+
             except Exception as e:
                 current_app.logger.error(f"获取系统指标失败: {e}")
-                return error_response("获取系统指标失败", str(e), 500)
+                return {
+                    'code': 500,
+                    'status': 'error',
+                    'error': {
+                        'type': 'INTERNAL_ERROR',
+                        'message': f"获取系统指标失败: {str(e)}"
+                    }
+                }, 500

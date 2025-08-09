@@ -117,6 +117,8 @@ class TestUserModel:
 
     def test_username_unique_constraint(self, database):
         """测试用户名唯一约束"""
+        from sqlalchemy.exc import IntegrityError
+        
         user1 = User(username='duplicate', email='user1@example.com')
         user1.set_password('password123')
         user2 = User(username='duplicate', email='user2@example.com')
@@ -127,11 +129,16 @@ class TestUserModel:
 
         database.session.add(user2)
 
-        with pytest.raises(Exception):  # 应该抛出完整性错误
+        with pytest.raises(IntegrityError):  # 应该抛出完整性错误
             database.session.commit()
+        
+        # 确保回滚后会话状态正常
+        database.session.rollback()
 
     def test_email_unique_constraint(self, database):
         """测试邮箱唯一约束"""
+        from sqlalchemy.exc import IntegrityError
+        
         user1 = User(username='user1', email='duplicate@example.com')
         user1.set_password('password123')
         user2 = User(username='user2', email='duplicate@example.com')
@@ -142,8 +149,11 @@ class TestUserModel:
 
         database.session.add(user2)
 
-        with pytest.raises(Exception):  # 应该抛出完整性错误
+        with pytest.raises(IntegrityError):  # 应该抛出完整性错误
             database.session.commit()
+        
+        # 确保回滚后会话状态正常
+        database.session.rollback()
 
 
 @pytest.mark.unit

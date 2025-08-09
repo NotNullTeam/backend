@@ -4,14 +4,20 @@ services:
       context: .
       dockerfile: Dockerfile
     ports:
-      - "5000:5001"
+      - "5001:5001"
     volumes:
+      - .:/app
       - ./uploads:/app/uploads
       - ./instance:/app/instance
       - ./logs:/app/logs
       - ./pip.conf:/root/.pip/pip.conf
     env_file:
       - ./.env
+#    environment:
+#      - LLM_USE_MOCK=1
+    dns:
+      - 8.8.8.8
+      - 223.5.5.5
     restart: unless-stopped
     depends_on:
       - redis

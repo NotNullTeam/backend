@@ -21,8 +21,8 @@ class TestDocumentService:
     def test_simple_text_extraction_txt(self, app):
         """测试文本文件提取"""
         with app.app_context():
-            # 创建临时文本文件
-            with tempfile.NamedTemporaryFile(mode='w', suffix='.txt', delete=False) as f:
+            # 创建临时文本文件（确保使用UTF-8编码）
+            with tempfile.NamedTemporaryFile(mode='w', suffix='.txt', encoding='utf-8', delete=False) as f:
                 f.write('这是测试文档内容\n包含多行文本')
                 temp_path = f.name
 
@@ -46,7 +46,7 @@ class TestDocumentService:
             finally:
                 os.unlink(temp_path)
 
-    def test_simple_text_split(self, app):
+    def test_simple_text_split(self, app, sample_user):
         """测试简单文本切分"""
         with app.app_context():
             # 创建测试文档对象
@@ -55,7 +55,7 @@ class TestDocumentService:
                 filename='test.txt',
                 original_filename='test.txt',
                 file_path='/tmp/test.txt',
-                user_id=1
+                user_id=sample_user.id
             )
 
             parsed_result = {

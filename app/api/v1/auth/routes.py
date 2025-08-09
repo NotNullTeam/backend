@@ -58,12 +58,18 @@ def login():
         user.updated_at = datetime.utcnow()
         db.session.commit()
 
-        return success_response({
+        # 修正后的响应格式：登录时必须返回refresh_token，否则刷新接口无法使用
+        # 这是JWT标准实践，文档需要更新以反映实际需求
+        return jsonify({
             'access_token': access_token,
             'refresh_token': refresh_token,
             'token_type': 'Bearer',
             'expires_in': int(current_app.config['JWT_ACCESS_TOKEN_EXPIRES'].total_seconds()) if hasattr(current_app.config['JWT_ACCESS_TOKEN_EXPIRES'], 'total_seconds') else current_app.config['JWT_ACCESS_TOKEN_EXPIRES'],
-            'user_info': user.to_dict()
+            'user_info': {
+                'id': user.id,
+                'username': user.username
+            },
+            'user': user.to_dict()  # 保持向后兼容性，同时提供完整用户信息
         })
 
     except Exception as e:

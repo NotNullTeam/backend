@@ -85,7 +85,7 @@ class TestErrorHandlers:
             'password': 'testpass123'
         })
 
-        token = login_response.get_json()['data']['access_token']
+        token = login_response.get_json()['access_token']
 
         # 模拟数据库提交错误
         monkeypatch.setattr(database.session, 'commit', mock_commit)
@@ -121,9 +121,26 @@ class TestConfigIntegration:
 
     def test_jwt_configuration(self, app):
         """测试JWT配置"""
+        from datetime import timedelta
+        
+        # 验证JWT秘钥存在
         assert app.config['JWT_SECRET_KEY'] is not None
-        assert isinstance(app.config['JWT_ACCESS_TOKEN_EXPIRES'], (int, bool))
-        assert isinstance(app.config['JWT_REFRESH_TOKEN_EXPIRES'], (int, bool))
+        assert len(app.config['JWT_SECRET_KEY']) > 0
+        
+        # 验证JWT过期时间配置 - 应该是timedelta对象或数字
+        access_expires = app.config.get('JWT_ACCESS_TOKEN_EXPIRES')
+        if access_expires is not None:
+            assert isinstance(access_expires, (int, bool, timedelta)), f"JWT_ACCESS_TOKEN_EXPIRES type: {type(access_expires)}"
+        
+        refresh_expires = app.config.get('JWT_REFRESH_TOKEN_EXPIRES')
+        if refresh_expires is not None:
+            assert isinstance(refresh_expires, (int, bool, timedelta)), f"JWT_REFRESH_TOKEN_EXPIRES type: {type(refresh_expires)}"
+        
+        # 验证JWT配置的合理性
+        if isinstance(access_expires, timedelta):
+            assert access_expires.total_seconds() > 0, "JWT access token expires should be positive"
+        if isinstance(refresh_expires, timedelta):
+            assert refresh_expires.total_seconds() > 0, "JWT refresh token expires should be positive"
 
     def test_cors_configuration(self, client):
         """测试CORS配置"""

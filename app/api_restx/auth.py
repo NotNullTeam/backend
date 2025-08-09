@@ -15,13 +15,15 @@ from flask_jwt_extended import (
 )
 
 from app import db
-from app.docs import auth_ns
+from app.docs import get_namespace
 from app.models.user import User
 from app.utils.response_helper import success_response, validation_error, unauthorized_error, internal_error
 from datetime import datetime
 
 def init_auth_api():
     """初始化身份认证API接口"""
+    # 动态获取 RESTX 命名空间，避免测试中复用陈旧实例导致重复注册
+    auth_ns = get_namespace('auth')
 
     # 登录请求模型
     login_model = auth_ns.model('LoginRequest', {
@@ -58,7 +60,6 @@ def init_auth_api():
     class Login(Resource):
         @auth_ns.doc('user_login')
         @auth_ns.expect(login_model)
-        # 移除marshal_with装饰器，手动处理响应格式
         def post(self):
             """用户登录
 
@@ -67,23 +68,23 @@ def init_auth_api():
             try:
                 data = request.get_json()
             except Exception as e:
-                return {'error': '请求参数格式错误'}, 400
+                return validation_error('请求参数格式错误')
 
             try:
                 if not data:
-                    return {'error': '请求体不能为空'}, 400
+                    return validation_error('请求体不能为空')
 
                 username = data.get('username')
                 password = data.get('password')
 
                 if not username or not password:
-                    return {'error': '用户名和密码不能为空'}, 400
+                    return validation_error('用户名和密码不能为空')
 
                 # 查找用户
                 user = User.query.filter_by(username=username).first()
 
                 if not user or not user.check_password(password) or not user.is_active:
-                    return {'error': '用户名或密码错误，或账户已被禁用'}, 401
+                    return unauthorized_error('用户名或密码错误')
 
                 # 更新最后登录时间
                 user.last_login = datetime.utcnow()
@@ -93,16 +94,19 @@ def init_auth_api():
                 access_token = create_access_token(identity=str(user.id))
                 refresh_token = create_refresh_token(identity=str(user.id))
 
+                # 按tests对RESTX认证模块预期直接返回字段（不包code/status）
+                expires_conf = current_app.config.get('JWT_ACCESS_TOKEN_EXPIRES', 3600)
+                expires_in = int(expires_conf.total_seconds()) if hasattr(expires_conf, 'total_seconds') else expires_conf
                 return {
                     'access_token': access_token,
                     'refresh_token': refresh_token,
                     'user': user.to_dict(),
-                    'expires_in': current_app.config.get('JWT_ACCESS_TOKEN_EXPIRES', 3600)
+                    'expires_in': expires_in
                 }
 
             except Exception as e:
                 current_app.logger.error(f"登录失败: {str(e)}")
-                return {'error': '登录失败，请稍后重试'}, 500
+                return internal_error('登录失败，请稍后重试')
 
     @auth_ns.route('/logout')
     class Logout(Resource):
@@ -125,7 +129,6 @@ def init_auth_api():
     class RefreshToken(Resource):
         @auth_ns.doc('refresh_token')
         @auth_ns.expect(refresh_model)
-        @auth_ns.marshal_with(login_response_model)
         def post(self):
             """刷新访问令牌
 
@@ -166,15 +169,15 @@ def init_auth_api():
                 new_access_token = create_access_token(identity=str(user.id))
                 new_refresh_token = create_refresh_token(identity=str(user.id))
 
-                return success_response(
-                    message='令牌刷新成功',
-                    data={
-                        'access_token': new_access_token,
-                        'refresh_token': new_refresh_token,
-                        'user': user.to_dict(),
-                        'expires_in': current_app.config.get('JWT_ACCESS_TOKEN_EXPIRES', 3600)
-                    }
-                )
+                # 按tests对RESTX认证模块预期直接返回字段
+                expires_conf = current_app.config.get('JWT_ACCESS_TOKEN_EXPIRES', 3600)
+                expires_in = int(expires_conf.total_seconds()) if hasattr(expires_conf, 'total_seconds') else expires_conf
+                return {
+                    'access_token': new_access_token,
+                    'refresh_token': new_refresh_token,
+                    'user': user.to_dict(),
+                    'expires_in': expires_in
+                }
 
             except Exception as e:
                 current_app.logger.error(f"刷新令牌失败: {str(e)}")
@@ -184,7 +187,6 @@ def init_auth_api():
     class CurrentUser(Resource):
         @auth_ns.doc('get_current_user')
         @auth_ns.doc(security='Bearer Auth')
-        @auth_ns.marshal_with(user_info_model)
         @jwt_required()
         def get(self):
             """获取当前用户信息

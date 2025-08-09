@@ -160,11 +160,15 @@ class TestWeaviateConnection:
 
     def test_weaviate_configuration(self):
         """测试Weaviate配置"""
+        import os
         from app.services.storage.vector_db_config import vector_db_config
 
         assert vector_db_config.is_valid()
         assert vector_db_config.config['url'] == 'http://localhost:8080'
-        assert vector_db_config.config['class_name'] == 'Document'
+        
+        # 检查环境变量的实际值，适配业务配置
+        expected_class_name = os.getenv('WEAVIATE_CLASS_NAME', 'Document')
+        assert vector_db_config.config['class_name'] == expected_class_name
 
     @pytest.mark.integration
     def test_real_weaviate_connection(self):

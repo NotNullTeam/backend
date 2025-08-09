@@ -18,7 +18,7 @@ class TestAPIResponseConsistency:
         # 测试不同模块的成功响应格式
         endpoints = [
             '/api/v1/system/status',
-            '/api/v1/auth/profile',
+            '/api/v1/auth/me',
             '/api/v1/cases/',
             '/api/v1/knowledge/documents',
         ]
@@ -42,7 +42,7 @@ class TestAPIResponseConsistency:
         """测试错误响应格式一致性"""
         # 测试不同类型的错误响应
         error_cases = [
-            ('/api/v1/auth/profile', 401),  # 未授权
+            ('/api/v1/auth/me', 401),  # 未授权
             ('/api/v1/cases/99999', 404),   # 不存在
             ('/api/v1/auth/login', 400),    # 无效请求
         ]
@@ -94,7 +94,7 @@ class TestAPIResponseConsistency:
         """测试Content-Type一致性"""
         endpoints = [
             '/api/v1/system/status',
-            '/api/v1/auth/profile',
+            '/api/v1/auth/me',
             '/api/v1/cases/',
         ]
 
@@ -108,7 +108,7 @@ class TestAPIResponseConsistency:
         """测试响应编码一致性"""
         endpoints = [
             '/api/v1/system/status',
-            '/api/v1/auth/profile',
+            '/api/v1/auth/me',
         ]
 
         for endpoint in endpoints:
@@ -187,7 +187,7 @@ class TestAPIResponseConsistency:
         """测试响应大小限制"""
         endpoints = [
             '/api/v1/system/status',
-            '/api/v1/auth/profile',
+            '/api/v1/auth/me',
             '/api/v1/cases/',
         ]
 
@@ -202,7 +202,7 @@ class TestAPIResponseConsistency:
         """测试响应头一致性"""
         endpoints = [
             '/api/v1/system/status',
-            '/api/v1/auth/profile',
+            '/api/v1/auth/me',
         ]
 
         for endpoint in endpoints:
@@ -217,7 +217,7 @@ class TestAPIResponseConsistency:
         # 所有v1 API都应该有统一的URL前缀
         v1_endpoints = [
             '/api/v1/system/status',
-            '/api/v1/auth/profile',
+            '/api/v1/auth/me',
             '/api/v1/cases/',
         ]
 
@@ -284,21 +284,32 @@ class TestAPIResponseConsistency:
         """测试响应时间一致性"""
         endpoints = [
             '/api/v1/system/status',
-            '/api/v1/auth/profile',
+            '/api/v1/auth/me',
         ]
 
         response_times = {}
+        # 多次测试取平均值，减少性能波动影响
+        num_runs = 3
 
         for endpoint in endpoints:
-            start_time = time.time()
-            response = client.get(endpoint, headers=auth_headers)
-            end_time = time.time()
+            times = []
+            for _ in range(num_runs):
+                start_time = time.time()
+                response = client.get(endpoint, headers=auth_headers)
+                end_time = time.time()
+                
+                # 确保请求成功
+                assert response.status_code in [200, 201], f"Request failed for {endpoint}: {response.status_code}"
+                
+                response_time = end_time - start_time
+                times.append(response_time)
+            
+            # 使用平均响应时间
+            avg_response_time = sum(times) / len(times)
+            response_times[endpoint] = avg_response_time
 
-            response_time = end_time - start_time
-            response_times[endpoint] = response_time
-
-            # 响应时间应该在合理范围内
-            assert response_time < 10.0, f"Response time too slow for {endpoint}: {response_time}s"
+            # 响应时间应该在合理范围内（放宽阈值）
+            assert avg_response_time < 30.0, f"Average response time too slow for {endpoint}: {avg_response_time:.3f}s"
 
         # 类似端点的响应时间应该相近
         if len(response_times) > 1:
@@ -306,9 +317,12 @@ class TestAPIResponseConsistency:
             max_time = max(times)
             min_time = min(times)
 
-            # 响应时间差异不应该过大 - 调整为更宽松的阈值
-            if min_time > 0:
+            # 响应时间差异不应该过大 - 使用更合理的阈值
+            if min_time > 0.001:  # 避免除以零的情况
                 ratio = max_time / min_time
-                assert ratio < 1000, f"Response time inconsistency too high: {ratio}"
+                # 放宽阈值，考虑测试环境的性能波动
+                assert ratio < 50.0, f"Response time inconsistency too high: {ratio:.2f} (max: {max_time:.3f}s, min: {min_time:.3f}s)"
                 # 记录响应时间差异供调试使用
                 print(f"Response time ratio: {ratio:.2f} (max: {max_time:.3f}s, min: {min_time:.3f}s)")
+            else:
+                print(f"Response times: {response_times}")

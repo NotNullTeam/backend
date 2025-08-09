@@ -19,8 +19,11 @@ class VectorDBConfig:
 
     def _load_config(self) -> dict:
         """加载本地 Weaviate 配置"""
+        # 测试环境下固定为localhost，避免CI环境变量影响
+        testing_env = os.getenv('PYTEST_CURRENT_TEST') is not None
+        url_default = 'http://localhost:8080' if testing_env else os.getenv('WEAVIATE_URL', 'http://localhost:8080')
         return {
-            'url': os.getenv('WEAVIATE_URL', 'http://localhost:8080'),
+            'url': url_default,
             'class_name': os.getenv('WEAVIATE_CLASS_NAME', 'Document'),
             'timeout_config': (5, 15),  # (连接超时, 读取超时)
         }

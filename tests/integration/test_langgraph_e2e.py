@@ -78,7 +78,7 @@ class TestLanggraphEndToEnd:
 
     @pytest.mark.slow
     @patch('app.services.ai.langgraph_agent_service.get_task_queue')
-    def test_langgraph_workflow_integration(self, mock_get_task_queue, app):
+    def test_langgraph_workflow_integration(self, mock_get_task_queue, app, sample_user):
         """测试langgraph工作流集成（模拟版本）"""
         with app.app_context():
             try:
@@ -94,7 +94,7 @@ class TestLanggraphEndToEnd:
                 logger.info("创建测试案例...")
                 case = Case(
                     title="测试langgraph Agent",
-                    user_id=1,
+                    user_id=sample_user.id,
                     metadata={
                         'vendor': 'Huawei',
                         'use_langgraph': True,
@@ -154,7 +154,7 @@ class TestLanggraphEndToEnd:
 class TestLanggraphRealIntegration:
     """真实环境下的 LangGraph 集成测试"""
 
-    def test_real_langgraph_workflow(self, app):
+    def test_real_langgraph_workflow(self, app, sample_user):
         """测试真实的langgraph工作流（需要完整环境）"""
         with app.app_context():
             try:
@@ -162,7 +162,7 @@ class TestLanggraphRealIntegration:
                 logger.info("创建测试案例...")
                 case = Case(
                     title="测试langgraph Agent - 真实环境",
-                    user_id=1,
+                    user_id=sample_user.id,
                     metadata={
                         'vendor': 'Huawei',
                         'use_langgraph': True,

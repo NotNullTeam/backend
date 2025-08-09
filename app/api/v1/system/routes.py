@@ -21,8 +21,8 @@ from app.api.v1.system.tasks import *
 def get_system_status():
     """获取系统状态"""
     try:
-        # 检查系统基本信息
-        cpu_percent = psutil.cpu_percent(interval=1)
+        # 检查系统基本信息（优化：使用非阻塞CPU监控）
+        cpu_percent = psutil.cpu_percent(interval=None)  # 非阻塞模式，返回上次调用后的平均值
         memory = psutil.virtual_memory()
         disk = psutil.disk_usage('/')
 
