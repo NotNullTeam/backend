@@ -37,7 +37,7 @@ tests/api/
 
 ```bash
 # 使用便捷脚本
-python run_api_tests.py
+python scripts/development/run_api_tests.py
 
 # 或使用pytest直接运行
 pytest tests/api/ -v
@@ -47,28 +47,28 @@ pytest tests/api/ -v
 
 ```bash
 # 认证模块
-python run_api_tests.py auth
+python scripts/development/run_api_tests.py auth
 
 # 案例模块  
-python run_api_tests.py cases
+python scripts/development/run_api_tests.py cases
 
 # 知识库模块
-python run_api_tests.py knowledge
+python scripts/development/run_api_tests.py knowledge
 
 # 系统模块
-python run_api_tests.py system
+python scripts/development/run_api_tests.py system
 
 # 开发工具模块
-python run_api_tests.py development
+python scripts/development/run_api_tests.py development
 
 # 响应一致性
-python run_api_tests.py consistency
+python scripts/development/run_api_tests.py consistency
 ```
 
 ### 3. 生成覆盖率报告
 
 ```bash
-python run_api_tests.py --coverage
+python scripts/development/run_api_tests.py --coverage
 ```
 
 ## 测试内容
@@ -235,7 +235,7 @@ jobs:
         pip install -r requirements.txt
     - name: Run API tests
       run: |
-        python run_api_tests.py --coverage
+        python scripts/development/run_api_tests.py --coverage
     - name: Upload coverage
       uses: codecov/codecov-action@v1
 ```

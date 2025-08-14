@@ -21,6 +21,11 @@
 # 1. 生成 .env 文件 (仅首次需要)
 # 该脚本会创建 .env 并生成必要的随机密钥
 python scripts/deployment/setup_env.py
+# 或复制示例环境文件（手动方式）
+# Linux/Mac
+cp .env.example .env
+# Windows (PowerShell/CMD)
+copy .env.example .env
 
 # 2. 构建并启动所有服务
 # -d 参数使服务在后台运行
@@ -30,8 +35,8 @@ docker compose up -d --build
 docker compose ps
 ```
 
-- **访问地址**: `http://localhost:5000`
-- **API文档**: `http://localhost:5000/docs/swagger/` (Swagger UI)
+- **访问地址**: `http://localhost:5001`
+- **API文档**: `http://localhost:5001/api/v1/docs/` (Swagger UI)
 - **停止服务**: `docker compose down`
 
 ### 3. 手动本地部署 (可选)
@@ -50,18 +55,23 @@ docker compose ps
     ```
 3.  **配置环境变量**
     ```bash
+    # 推荐使用脚本生成 .env（会生成必要的随机密钥）
+    python scripts/deployment/setup_env.py
+    # 或复制 .env.example 为 .env 并填入必要配置
+    # Linux/Mac
     cp .env.example .env
-    # 根据需要修改 .env 文件中的配置
+    # Windows (PowerShell/CMD)
+    copy .env.example .env
     ```
 4.  **初始化数据库并启动**
     ```bash
-    python scripts/init_db.py
+    python scripts/database/init_db.py
     python run.py
     ```
 
 ---
 
-## 🔧 开发常用命令
+## 开发常用命令
 
 ### 代码质量
 
@@ -101,7 +111,7 @@ pytest --cov=app
 
 ---
 
-## 📁 项目结构概览
+## 项目结构概览
 
 ```
 backend/
@@ -124,7 +134,7 @@ backend/
 ### 异步任务开发
 ```bash
 # 启动Worker进程
-python scripts/worker.py
+python scripts/deployment/worker.py
 
 # 监控任务队列
 rq info
@@ -133,7 +143,7 @@ rq info
 rq empty failed
 ```
 
-## 🌍 部署
+## 部署
 
 ### 生产环境配置（Docker 推荐）
 生产环境建议直接使用 **Docker Compose**，免去系统层依赖：
@@ -155,10 +165,10 @@ pip install -r requirements.txt
 export FLASK_ENV=production
 
 # 使用 Gunicorn（需自行 pip install gunicorn）
-gunicorn -w 4 -b 0.0.0.0:5000 run:app
+gunicorn -w 4 -b 0.0.0.0:5001 run:app
 ```
 
-## 🔍 故障排除
+## 故障排除
 
 ### 常见问题
 
@@ -172,7 +182,7 @@ gunicorn -w 4 -b 0.0.0.0:5000 run:app
 
 3. **端口占用**
    - 修改 `run.py` 中的端口配置
-   - 或使用 `lsof -i :5000` 查找占用进程
+   - 或使用 `lsof -i :5001` 查找占用进程
 
 ### 日志查看
 ```bash
@@ -184,12 +194,12 @@ systemctl status redis     # Linux (如果使用Redis)
 brew services list        # macOS
 ```
 
-## 📚 文档
+## 文档
 
 ### API 文档
-- **在线文档**: 访问 `/docs/swagger/` 查看完整的 Swagger UI 文档
-- **本地开发**: `http://localhost:5001/docs/swagger/`
-- **生产环境**: `http://your-domain.com/docs/swagger/`
+- **在线文档**: 访问 `/api/v1/docs/` 查看完整的 Swagger UI 文档
+- **本地开发**: `http://localhost:5001/api/v1/docs/`
+- **生产环境**: `http://your-domain.com/api/v1/docs/`
 - **技术栈**: 基于 Flask-RESTX 生成的 OpenAPI 3.0 规范
 
 ### 其他文档

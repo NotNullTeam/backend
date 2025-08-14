@@ -5,10 +5,21 @@
 ## 脚本说明
 
 ### `setup_env.py` - 生成本地环境文件
-根据 `backend/.env.example` 生成 `backend/.env`，并随机写入 `SECRET_KEY`、`JWT_SECRET_KEY`。
+生成 `backend/.env`，并随机写入 `SECRET_KEY`、`JWT_SECRET_KEY`（不依赖 `.env.example`）。
+也可使用 `.env.example` 手动复制并填写配置。
 
 ```bash
 python scripts/deployment/setup_env.py
+```
+
+手动方式（可选）：
+
+```bash
+# 在 backend/ 目录下执行
+# Linux/Mac
+cp .env.example .env
+# Windows (PowerShell/CMD)
+copy .env.example .env
 ```
 
 ### `start_worker.sh` - RQ Worker Shell 启动脚本

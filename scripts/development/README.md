@@ -5,13 +5,13 @@
 统一的测试运行入口，支持不同类型的测试执行。
 ```bash
 # 运行所有测试
-python scripts/development/run_tests.py --type all
+python scripts/development/run_tests.py all
 # 只运行单元测试
-python scripts/development/run_tests.py --type unit
+python scripts/development/run_tests.py unit
 # 运行集成测试
-python scripts/development/run_tests.py --type integration
+python scripts/development/run_tests.py integration
 # 生成覆盖率报告
-python scripts/development/run_tests.py --coverage
+python scripts/development/run_tests.py coverage
 ```
 ### `test_model_connection.py` - LLM模型连接测试
 测试大语言模型的连接性和基本功能。

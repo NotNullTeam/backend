@@ -47,17 +47,14 @@ tests/
 python scripts/development/run_tests.py
 
 # 运行特定类型的测试
-python scripts/development/run_tests.py --type api          # API层测试
-python scripts/development/run_tests.py --type services     # 服务层测试
-python scripts/development/run_tests.py --type models       # 模型层测试
-python scripts/development/run_tests.py --type integration  # 集成测试
-python scripts/development/run_tests.py --type unit         # 单元测试
+python scripts/development/run_tests.py api          # API层测试
+python scripts/development/run_tests.py auth         # 认证测试
+python scripts/development/run_tests.py models       # 模型层测试
+python scripts/development/run_tests.py integration  # 集成测试
+python scripts/development/run_tests.py unit         # 单元测试
 
 # 生成覆盖率报告
-python scripts/development/run_tests.py --coverage
-
-# 并行运行测试（需要安装pytest-xdist）
-python scripts/development/run_tests.py --parallel
+python scripts/development/run_tests.py coverage
 
 # 详细输出
 python scripts/development/run_tests.py --verbose
@@ -207,7 +204,7 @@ pytest tests/services/test_hybrid_retrieval_core.py::TestHybridRetrievalCore::te
 pytest --pdb
 ```
 
-## 📈 持续集成
+## 持续集成
 
 测试套件支持在CI/CD流水线中运行：
 
@@ -215,7 +212,7 @@ pytest --pdb
 # GitHub Actions示例
 - name: Run tests
   run: |
-    python run_tests.py --coverage
+    python scripts/development/run_tests.py --coverage
     
 - name: Upload coverage
   uses: codecov/codecov-action@v1

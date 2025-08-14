@@ -59,7 +59,7 @@ python scripts/database/setup_vector_db.py
 
 ```bash
 # 运行测试套件
-python scripts/development/run_tests.py --type all
+python scripts/development/run_tests.py all
 
 # 运行API响应测试（推荐）
 python scripts/development/run_api_tests.py                    # 所有API测试
@@ -113,7 +113,7 @@ python scripts/maintenance/backup_data.py --cleanup-days 30
 独立的数据库初始化脚本，与原根目录脚本功能相同。
 
 ```bash
-python scripts/init_db.py
+python scripts/database/init_db.py
 ```
 
 ### `run_tests.py` - 测试运行脚本
@@ -121,14 +121,14 @@ python scripts/init_db.py
 
 ```bash
 # 运行所有测试
-python scripts/run_tests.py all
+python scripts/development/run_tests.py all
 
 # 运行特定类型测试
-python scripts/run_tests.py auth
-python scripts/run_tests.py models
+python scripts/development/run_tests.py auth
+python scripts/development/run_tests.py models
 
 # 生成覆盖率报告
-python scripts/run_tests.py coverage
+python scripts/development/run_tests.py coverage
 ```
 
 ### `worker.py` - RQ异步任务Worker
@@ -136,7 +136,7 @@ python scripts/run_tests.py coverage
 
 ```bash
 # 启动Worker进程
-python scripts/worker.py
+python scripts/deployment/worker.py
 
 # 监控任务队列状态
 rq info
@@ -159,7 +159,7 @@ python scripts/manage.py init
 
 ### 方式3：使用独立脚本
 ```bash
-python scripts/init_db.py
+python scripts/database/init_db.py
 ```
 
 ## 开发流程
@@ -182,7 +182,7 @@ python scripts/init_db.py
    python run.py
 
    # 启动异步任务Worker（新终端）
-   python scripts/worker.py
+   python scripts/deployment/worker.py
    ```
 
 3. **重置环境**
