@@ -9,6 +9,7 @@ import logging
 from datetime import datetime
 from typing import Dict, Any, List
 from rq import get_current_job
+from flask import has_app_context, current_app
 from app import create_app, db
 from app.models.knowledge import KnowledgeDocument, ParsingJob
 from app.services.document.idp_service import IDPService
@@ -26,121 +27,132 @@ def parse_document(job_id: str):
     """
     解析文档的异步任务 - 专注于IDP服务
 
+    优先复用现有的 Flask 应用上下文，避免在测试环境中重新 create_app()
+    造成使用不同数据库配置（如指向不存在的 SQLite 文件）。
+
     Args:
         job_id: 解析任务ID
     """
+    if has_app_context():
+        return _parse_document_impl(job_id)
+    # 无应用上下文时再创建应用
     app = create_app()
     with app.app_context():
-        job = db.session.get(ParsingJob, job_id)
-        if not job:
-            logger.error(f"解析任务未找到: {job_id}")
-            return
+        return _parse_document_impl(job_id)
 
-        document = db.session.get(KnowledgeDocument, job.document_id)
-        if not document:
-            logger.error(f"知识文档未找到: {job.document_id}")
-            return
 
+def _parse_document_impl(job_id: str):
+    """核心实现，假定已在 Flask 应用上下文中。"""
+    job = db.session.get(ParsingJob, job_id)
+    if not job:
+        logger.error(f"解析任务未找到: {job_id}")
+        return
+
+    document = db.session.get(KnowledgeDocument, job.document_id)
+    if not document:
+        logger.error(f"知识文档未找到: {job.document_id}")
+        return
+
+    try:
+        logger.info(f"开始解析文档: {document.original_filename}")
+
+        # 更新状态
+        job.status = 'PROCESSING'
+        job.started_at = datetime.utcnow()
+        document.status = 'PARSING'
+        document.progress = 10
+        db.session.commit()
+
+        # 优先使用阿里云IDP服务
         try:
-            logger.info(f"开始解析文档: {document.original_filename}")
+            logger.info("调用阿里云IDP服务解析文档...")
+            idp_service = IDPService()
 
-            # 更新状态
-            job.status = 'PROCESSING'
-            job.started_at = datetime.utcnow()
-            document.status = 'PARSING'
-            document.progress = 10
+            # 验证文件格式
+            if not idp_service.validate_file_format(document.file_path):
+                raise Exception(f"不支持的文件格式: {document.file_path}")
+
+            parsed_result = idp_service.parse_document(document.file_path)
+            document.progress = 50
             db.session.commit()
 
-            # 优先使用阿里云IDP服务
-            try:
-                logger.info("调用阿里云IDP服务解析文档...")
-                idp_service = IDPService()
-
-                # 验证文件格式
-                if not idp_service.validate_file_format(document.file_path):
-                    raise Exception(f"不支持的文件格式: {document.file_path}")
-
-                parsed_result = idp_service.parse_document(document.file_path)
-                document.progress = 50
-                db.session.commit()
-
-                logger.info("IDP服务解析完成")
-
-            except Exception as e:
-                logger.warning(f"IDP服务解析失败: {str(e)}")
-
-                # 简化的备用方案：只支持纯文本文件
-                file_ext = os.path.splitext(document.file_path)[1].lower()
-                if file_ext in ['.txt', '.md']:
-                    parsed_result = _simple_text_extraction(document.file_path)
-                    document.progress = 50
-                    db.session.commit()
-                    logger.info("使用简单文本提取作为备用方案")
-                else:
-                    # 对于复杂文档，直接失败并提示用户
-                    raise Exception(f"文档格式 {file_ext} 需要使用阿里云IDP服务解析，请检查服务配置或网络连接")
-
-            # 语义切分
-            try:
-                logger.info("开始语义切分...")
-                splitter = SemanticSplitter(max_chunk_size=1000, overlap=100)
-                chunks = splitter.split_document(parsed_result, document)
-
-                # 为每个chunk添加元数据
-                for chunk in chunks:
-                    chunk.update(splitter.extract_metadata(chunk, document))
-
-                document.progress = 70
-                db.session.commit()
-
-                logger.info(f"语义切分完成，生成 {len(chunks)} 个文档块")
-
-            except Exception as e:
-                logger.error(f"语义切分失败: {str(e)}")
-                raise
-
-            # 向量化并存储
-            try:
-                logger.info("开始向量化和存储...")
-                vector_service = VectorService()
-                vector_service.index_chunks(chunks, document.id)
-                document.progress = 90
-                db.session.commit()
-
-                logger.info("向量化和存储完成")
-
-            except Exception as e:
-                logger.warning(f"向量化失败，但文档解析已完成: {str(e)}")
-                # 向量化失败不影响主流程
-
-            # 更新状态
-            job.status = 'COMPLETED'
-            job.completed_at = datetime.utcnow()
-            job.result_data = {
-                'chunks_count': len(chunks),
-                'text_length': sum(len(chunk.get('content', '')) for chunk in chunks),
-                'vendor': document.vendor,
-                'categories': list(set(chunk.get('category', '其他') for chunk in chunks if chunk.get('category'))),
-                'processed_with_idp': 'IDP服务' if 'layouts' in parsed_result else '简单文本提取'
-            }
-            document.status = 'INDEXED'
-            document.progress = 100
-            document.processed_at = datetime.utcnow()
-
-            db.session.commit()
-            logger.info(f"文档解析任务完成: {document.original_filename}")
+            logger.info("IDP服务解析完成")
 
         except Exception as e:
-            # 错误处理
-            logger.error(f"文档解析任务失败: {str(e)}")
-            job.status = 'FAILED'
-            job.error_message = str(e)
-            job.completed_at = datetime.utcnow()
-            document.status = 'FAILED'
-            document.error_message = str(e)
+            logger.warning(f"IDP服务解析失败: {str(e)}")
 
+            # 简化的备用方案：只支持纯文本文件
+            file_ext = os.path.splitext(document.file_path)[1].lower()
+            if file_ext in ['.txt', '.md']:
+                parsed_result = _simple_text_extraction(document.file_path)
+                document.progress = 50
+                db.session.commit()
+                logger.info("使用简单文本提取作为备用方案")
+            else:
+                # 对于复杂文档，直接失败并提示用户
+                raise Exception(f"文档格式 {file_ext} 需要使用阿里云IDP服务解析，请检查服务配置或网络连接")
+
+        # 语义切分
+        try:
+            logger.info("开始语义切分...")
+            splitter = SemanticSplitter(max_chunk_size=1000, overlap=100)
+            chunks = splitter.split_document(parsed_result, document)
+
+            # 为每个chunk添加元数据
+            for chunk in chunks:
+                chunk.update(splitter.extract_metadata(chunk, document))
+
+            document.progress = 70
             db.session.commit()
+
+            logger.info(f"语义切分完成，生成 {len(chunks)} 个文档块")
+
+        except Exception as e:
+            logger.error(f"语义切分失败: {str(e)}")
             raise
+
+        # 向量化并存储
+        try:
+            logger.info("开始向量化和存储...")
+            vector_service = VectorService()
+            vector_service.index_chunks(chunks, document.id)
+            document.progress = 90
+            db.session.commit()
+
+            logger.info("向量化和存储完成")
+
+        except Exception as e:
+            logger.warning(f"向量化失败，但文档解析已完成: {str(e)}")
+            # 向量化失败不影响主流程
+
+        # 更新状态
+        job.status = 'COMPLETED'
+        job.completed_at = datetime.utcnow()
+        job.result_data = {
+            'chunks_count': len(chunks),
+            'text_length': sum(len(chunk.get('content', '')) for chunk in chunks),
+            'vendor': document.vendor,
+            'categories': list(set(chunk.get('category', '其他') for chunk in chunks if chunk.get('category'))),
+            'processed_with_idp': 'IDP服务' if 'layouts' in parsed_result else '简单文本提取'
+        }
+        document.status = 'INDEXED'
+        document.progress = 100
+        document.processed_at = datetime.utcnow()
+
+        db.session.commit()
+        logger.info(f"文档解析任务完成: {document.original_filename}")
+
+    except Exception as e:
+        # 错误处理
+        logger.error(f"文档解析任务失败: {str(e)}")
+        job.status = 'FAILED'
+        job.error_message = str(e)
+        job.completed_at = datetime.utcnow()
+        document.status = 'FAILED'
+        document.error_message = str(e)
+
+        db.session.commit()
+        raise
 
 
 def _simple_text_extraction(file_path: str) -> Dict[str, Any]:

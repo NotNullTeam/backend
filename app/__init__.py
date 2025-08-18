@@ -60,10 +60,6 @@ def create_app(config_class=Config):
     from app.api.v1 import v1_bp
     app.register_blueprint(v1_bp)
 
-    # 初始化 API 文档系统（RESTX 文档与开发端点）
-    from app.docs import init_docs
-    init_docs(app)
-
     # 注册错误处理器
     from app.errors import register_error_handlers
     register_error_handlers(app)

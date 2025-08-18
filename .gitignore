@@ -36,13 +36,8 @@ MANIFEST
 .spyderproject
 .spyproject
 
-# 保留项目特定的 VSCode 配置
-.vscode/*
-!.vscode/settings.json
-!.vscode/pyrightconfig.json
-!.vscode/launch.json
-!.vscode/tasks.json
-!.vscode/extensions.json
+# VSCode 配置
+.vscode/
 
 # 系统文件
 .DS_Store
