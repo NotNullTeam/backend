@@ -26,7 +26,6 @@ def allowed_file(filename):
 
 
 @bp.route('/documents', methods=['POST'])
-@bp.route('/upload', methods=['POST'])  # 别名路由
 @jwt_required()
 def upload_document():
     """
@@ -500,7 +499,7 @@ def delete_document(doc_id):
         }), 500
 
 
-@bp.route('/documents/<doc_id>/reparse', methods=['PUT'])
+@bp.route('/documents/<doc_id>/reparse', methods=['POST'])
 @jwt_required()
 def reparse_document(doc_id):
     """

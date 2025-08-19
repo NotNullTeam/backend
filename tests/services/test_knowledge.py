@@ -132,7 +132,7 @@ class TestKnowledgeAPI:
         test_document.error_message = 'Test error'
         db.session.commit()
 
-        response = client.put(f'/api/v1/knowledge/documents/{test_document.id}/reparse',
+        response = client.post(f'/api/v1/knowledge/documents/{test_document.id}/reparse',
                             headers=auth_headers)
 
         assert response.status_code == 200
@@ -148,7 +148,7 @@ class TestKnowledgeAPI:
 
     def test_reparse_document_not_found(self, client, auth_headers):
         """测试重新解析不存在的文档"""
-        response = client.put('/api/v1/knowledge/documents/nonexistent-id/reparse',
+        response = client.post('/api/v1/knowledge/documents/nonexistent-id/reparse',
                             headers=auth_headers)
 
         assert response.status_code == 404

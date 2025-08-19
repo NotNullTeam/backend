@@ -352,7 +352,7 @@ class TestKnowledgeAPIResponses:
     def test_reparse_document_response(self, client, auth_headers):
         """测试重新解析文档响应格式"""
         # 假设文档ID为1
-        response = client.put('/api/v1/knowledge/documents/1/reparse', headers=auth_headers)
+        response = client.post('/api/v1/knowledge/documents/1/reparse', headers=auth_headers)
 
         if response.status_code == 200:
             data = response.get_json()
